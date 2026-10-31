@@ -138,8 +138,43 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    void refreshData();
-  }, [refreshData]);
+    let isActive = true;
+
+    void Promise.allSettled([getOverview(), getDatasets()]).then(
+      ([overviewResult, datasetsResult]) => {
+        if (!isActive) return;
+
+        if (overviewResult.status === "fulfilled") {
+          setOverview(overviewResult.value);
+        }
+        if (datasetsResult.status === "fulfilled") {
+          setDatasets(datasetsResult.value);
+        }
+
+        const failedResult =
+          overviewResult.status === "rejected"
+            ? overviewResult
+            : datasetsResult.status === "rejected"
+              ? datasetsResult
+              : null;
+
+        if (failedResult) {
+          const reason = failedResult.reason;
+          setApiError(
+            reason instanceof Error
+              ? reason.message
+              : "Could not load DataSentry workspace data.",
+          );
+        }
+
+        setIsLoading(false);
+      },
+    );
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.currentTarget.files?.[0] ?? null;
