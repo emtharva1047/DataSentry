@@ -1,47 +1,34 @@
 # 30-Day Development Roadmap
 
-This plan is scoped for one developer. Protect the research experiment and end-to-end workflow; treat secondary UI polish as optional.
+The project is scoped for one developer. Prioritize a working end-to-end research prototype over optional UI polish.
 
-## Week 1 — Foundation and profiling (Days 1–7)
-- [ ] Create Next.js frontend and FastAPI backend.
-- [ ] Connect frontend → API → SQLite.
-- [ ] Implement safe CSV upload and metadata persistence.
-- [ ] Build dataset list/detail endpoints.
-- [ ] Implement core data profiling.
-- [ ] Display dimensions, types, missingness, and summaries.
+## Week 1 — Foundation and ingestion (Days 1–7)
+- [x] FastAPI, SQLite, SQLAlchemy foundation and health/overview APIs.
+- [x] CSV upload endpoint with extension, size, row, column, header, and encoding validation.
+- [x] Generated storage names, SHA-256 fingerprint, and metadata persistence.
+- [x] Dataset list/detail endpoints with safe response schemas.
+- [x] Backend ingestion tests (7 passing in the development environment).
+- [ ] Browser upload UI and dataset table.
+- [ ] Automated profiling: types, missingness, uniqueness, summaries, and distributions.
 
-**Exit criterion:** A CSV can be uploaded, persisted, and profiled through the browser.
+**Exit criterion:** A CSV can be uploaded and profiled through the browser.
 
-## Week 2 — Detection and scoring (Days 8–14)
-- [ ] Missing-value, duplicate, schema, and category checks.
-- [ ] IQR and robust Z-score detectors.
-- [ ] Isolation Forest with reproducible settings.
-- [ ] Explainable DQS with component scores and applicability handling.
-- [ ] Store issues with evidence and detector metadata.
+## Week 2 — Profiling and quality detection (Days 8–14)
+- [ ] Column profiling and summary endpoints.
+- [ ] Missingness, duplicate, schema/domain, and category inconsistency checks.
+- [ ] Explainable DQS with explicit denominators and active-weight normalization.
+- [ ] Store issue evidence, detector, severity, and affected counts.
 
-**Exit criterion:** A user can inspect real detected issues and understand why each was flagged.
+## Week 3 — Anomaly, cleaning, and ML readiness (Days 15–21)
+- [ ] IQR, robust Z-score, and Isolation Forest with reproducible parameters.
+- [ ] Cleaning preview, explicit apply, and immutable dataset versions.
+- [ ] ML-readiness checks and leakage-safe baseline models.
 
-## Week 3 — Cleaning and research engine (Days 15–21)
-- [ ] Cleaning recommendations and preview.
-- [ ] Save cleaned output as a new immutable dataset version.
-- [ ] ML-readiness checks and one baseline model path.
-- [ ] Synthetic corruption generator with ground truth.
-- [ ] Precision, recall, F1, runtime, and downstream metrics.
+## Week 4 — Research evaluation and delivery (Days 22–30)
+- [ ] Seeded synthetic corruption and ground-truth defect labels.
+- [ ] Precision, recall, F1, runtime, and downstream ML comparisons.
+- [ ] Repeat stochastic runs and report mean/standard deviation.
+- [ ] UI integration, automated tests, research report, and demonstration.
 
-**Exit criterion:** A reproducible experiment compares at least two detectors on a dataset and defect type.
-
-## Week 4 — Evaluation and presentation (Days 22–30)
-- [ ] Finish dashboard and experiment charts.
-- [ ] Run experiments across datasets, defect types, rates, and seeds.
-- [ ] Add tests, validation, and error handling.
-- [ ] Generate research report and document limitations.
-- [ ] Prepare demonstration and presentation.
-
-**Exit criterion:** End-to-end demonstration plus reproducible research results.
-
-## Scope cuts if behind schedule
-1. Keep CSV only; defer Excel/Parquet.
-2. Keep SQLite; defer user roles and cloud deployment.
-3. Support one classification and one regression baseline.
-4. Keep PDF export optional.
-5. Prioritize reproducible benchmarks over cosmetic UI work.
+## Scope cuts
+Keep CSV only, SQLite, one classifier and one regressor. Defer role-based access, cloud-scale processing, Excel/Parquet, and advanced PDF export if needed.
