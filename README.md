@@ -4,7 +4,7 @@
 
 DataSentry is a research-oriented full-stack application that profiles tabular datasets, detects quality issues using statistical, rule-based, and machine-learning techniques, recommends transparent cleaning actions, and evaluates how data defects affect downstream ML models.
 
-> **Status:** Early development. The backend supports validated CSV ingestion, SQLite metadata persistence, dataset listing, and dataset detail retrieval. Browser upload UI, profiling, detection, cleaning, and research experiments remain in progress.
+> **Status:** The FastAPI backend supports validated CSV ingestion and dataset metadata APIs. The Next.js dashboard now includes API status, CSV upload, and a dataset library. Automated profiling, quality scoring, anomaly detection, cleaning, ML readiness, and research evaluation remain in progress.
 
 ## Planned capabilities
 - CSV upload with extension/header validation, UTF-8/Windows-1252 decoding, byte/row/column limits, generated storage names, SHA-256 fingerprints, and metadata persistence.
@@ -34,8 +34,24 @@ pytest -q
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-### Frontend
-Generate the Next.js App Router project using TypeScript, ESLint, Tailwind CSS, `src/`, and App Router. Copy `frontend-snippets/page.tsx` to `frontend/src/app/page.tsx`, copy `.env.local.example` to `.env.local`, then run `npm run dev`.
+### Frontend (Windows PowerShell)
+```powershell
+cd frontend
+Copy-Item .env.example .env.local
+npm install
+npm run dev
+```
+
+Open http://localhost:3000. The dashboard uses the FastAPI service at http://127.0.0.1:8000 by default. Change `NEXT_PUBLIC_API_BASE_URL` in `.env.local` when the backend runs elsewhere.
+
+Available frontend checks:
+```powershell
+npm run lint
+npm run typecheck
+npm run build
+```
+
+Node.js 20.9 or newer is required (Node.js 22 LTS is recommended). See [frontend/README.md](frontend/README.md) for the complete setup guide.
 
 ## Research integrity and security
 Preserve originals; cleaning creates a new version. Anomaly flags are not proof of invalid data. Fit preprocessing only on training data. Record dataset provenance, configurations, random seeds, and limitations. Do not fabricate research results. Validate uploads, sanitize filenames, never execute user files, and do not commit secrets or private datasets.

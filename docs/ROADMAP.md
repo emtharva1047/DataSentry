@@ -8,10 +8,11 @@ The project is scoped for one developer. Prioritize a working end-to-end researc
 - [x] Generated storage names, SHA-256 fingerprint, and metadata persistence.
 - [x] Dataset list/detail endpoints with safe response schemas.
 - [x] Backend ingestion tests (7 passing in the development environment).
-- [ ] Browser upload UI and dataset table.
+- [x] Browser upload UI and dataset table implemented with API connection status and dataset metadata.
+- [ ] Live browser-to-API upload/list smoke test.
 - [ ] Automated profiling: types, missingness, uniqueness, summaries, and distributions.
 
-**Exit criterion:** A CSV can be uploaded and profiled through the browser.
+**Exit criterion:** A CSV can be uploaded and profiled through the browser. Upload UI is implemented; the live end-to-end smoke test and profiling step remain open.
 
 ## Week 2 — Profiling and quality detection (Days 8–14)
 - [ ] Column profiling and summary endpoints.
@@ -29,6 +30,9 @@ The project is scoped for one developer. Prioritize a working end-to-end researc
 - [ ] Precision, recall, F1, runtime, and downstream ML comparisons.
 - [ ] Repeat stochastic runs and report mean/standard deviation.
 - [ ] UI integration, automated tests, research report, and demonstration.
+
+## Frontend validation
+The GitHub Actions workflow at `.github/workflows/frontend-ci.yml` runs ESLint, TypeScript checks, and a production build for frontend changes. The initial run exposed a React hooks lint issue; a fix was committed and the rerun is tracked on GitHub Actions.
 
 ## Scope cuts
 Keep CSV only, SQLite, one classifier and one regressor. Defer role-based access, cloud-scale processing, Excel/Parquet, and advanced PDF export if needed.
