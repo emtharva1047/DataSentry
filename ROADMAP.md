@@ -2,9 +2,9 @@
 
 ## Milestones
 
-- [ ] M1 — Foundation: Next.js, FastAPI, SQLite, health and overview API.
-- [ ] M2 — Dataset ingestion: secure CSV upload, validation, and metadata persistence.
-- [ ] M3 — Profiling: schema, missingness, uniqueness, summaries, and correlations.
+- [ ] M1 — Foundation: FastAPI/SQLite APIs and Next.js dashboard are implemented; live browser-to-API verification remains.
+- [ ] M2 — Dataset ingestion: validated CSV backend upload, metadata persistence, list/detail APIs, and browser upload/library are implemented; end-to-end browser verification remains.
+- [x] M3 — Profiling: schema, missingness, uniqueness, summaries, numeric distributions, and correlations via the read-only profile API.
 - [ ] M4 — Quality rules: duplicates, validity, consistency, and issue evidence.
 - [ ] M5 — Explainable DQS: documented component formulas and active-weight normalization.
 - [ ] M6 — Anomaly detection: IQR, robust Z-score, and Isolation Forest.
