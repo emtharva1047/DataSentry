@@ -25,12 +25,12 @@ Quality findings are evidence for review, not automatic corrections. The current
 
 ## Dataset API
 
-- \`POST /api/datasets/upload\` — multipart CSV upload; response contains safe metadata.
-- \`GET /api/datasets\` — list dataset metadata.
-- \`GET /api/datasets/{id}\` — retrieve one dataset.
-- \`GET /api/datasets/{id}/profile\` — generate a read-only statistical profile on demand.
-- \`GET /api/datasets/{id}/quality\` — generate rule-based issue evidence and an explainable DQS on demand.
-- \`GET /api/health\` and \`GET /api/overview\` — service and database status.
+- `POST /api/datasets/upload` — multipart CSV upload; response contains safe metadata.
+- `GET /api/datasets` — list dataset metadata.
+- `GET /api/datasets/{id}` — retrieve one dataset.
+- `GET /api/datasets/{id}/profile` — generate a read-only statistical profile on demand.
+- `GET /api/datasets/{id}/quality` — generate rule-based issue evidence and an explainable DQS on demand.
+- `GET /api/health` and `GET /api/overview` — service and database status.
 
 ### Quality assessment method
 
@@ -53,34 +53,34 @@ Run the backend and frontend in separate terminals.
 
 ### Backend (Windows PowerShell)
 
-\`\`\`powershell
+```powershell
 cd backend
 py -3.12 -m venv .venv
-.\\.venv\\Scripts\\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 $env:PYTHONPATH = "."
 pytest -q
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-\`\`\`
+```
 
 ### Frontend (Windows PowerShell)
 
-\`\`\`powershell
+```powershell
 cd frontend
 Copy-Item .env.example .env.local
 npm install
 npm run dev
-\`\`\`
+```
 
-Open \`http://localhost:3000\`. The frontend defaults to \`http://127.0.0.1:8000\`; override \`NEXT_PUBLIC_API_BASE_URL\` in \`.env.local\` if the API uses another address. The backend CORS allowlist permits the default localhost frontend origins.
+Open `http://localhost:3000`. The frontend defaults to `http://127.0.0.1:8000`; override `NEXT_PUBLIC_API_BASE_URL` in `.env.local` if the API uses another address. The backend CORS allowlist permits the default localhost frontend origins.
 
 Frontend checks:
 
-\`\`\`powershell
+```powershell
 npm run lint
 npm run typecheck
 npm run build
-\`\`\`
+```
 
 ## Research integrity and security
 

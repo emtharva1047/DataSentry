@@ -16,12 +16,12 @@ The project is scoped for one developer. Prioritize a working end-to-end researc
 **Exit criterion:** A CSV can be uploaded and profiled through the browser. The upload UI and profile API exist; browser-to-API profile interaction remains pending.
 
 ## Week 2 — Profiling and quality detection (Days 8–14)
-- [x] Read-only column profiling and summary endpoint (\`GET /api/datasets/{id}/profile\`).
+- [x] Read-only column profiling and summary endpoint (`GET /api/datasets/{id}/profile`).
 - [ ] Missingness, duplicate, schema/domain, and category inconsistency quality rules with issue evidence. Missingness, exact duplicates, inferred numeric type mismatch, and categorical whitespace/case findings are implemented; explicit user-defined schema/domain constraints and browser visualization remain.
 - [x] Explainable DQS with explicit denominators and active-weight normalization.
 - [x] Quality endpoint reports issue evidence, detector code, severity, affected counts, and one-based data-row numbers.
 
-The read-only quality endpoint is \`GET /api/datasets/{id}/quality\`. It preserves the uploaded source and computes its report on demand. DQS weights are completeness 30%, validity 30%, uniqueness 20%, and consistency 20%. A component with no assessable denominator is marked inapplicable; remaining weights are renormalized. Validity currently checks inferred numeric-like columns (at least 80% finite numeric parseability and at least two valid values), not user-defined business domains. Categorical whitespace and case variants are review flags; they are not automatically normalized. Severity is high at >=20% affected, medium at >=5% and <20%, and low below 5%.
+The read-only quality endpoint is `GET /api/datasets/{id}/quality`. It preserves the uploaded source and computes its report on demand. DQS weights are completeness 30%, validity 30%, uniqueness 20%, and consistency 20%. A component with no assessable denominator is marked inapplicable; remaining weights are renormalized. Validity currently checks inferred numeric-like columns (at least 80% finite numeric parseability and at least two valid values), not user-defined business domains. Categorical whitespace and case variants are review flags; they are not automatically normalized. Severity is high at >=20% affected, medium at >=5% and <20%, and low below 5%.
 
 The profile endpoint also computes on demand and does not persist profile snapshots. Numeric histograms use 10 bins; Pearson correlation is limited to the first 20 numeric columns to bound response size. Anomaly flags are intentionally not part of the quality score.
 
