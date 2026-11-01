@@ -5,8 +5,8 @@
 - [ ] M1 — Foundation: FastAPI/SQLite APIs and Next.js dashboard are implemented; live browser-to-API verification remains.
 - [ ] M2 — Dataset ingestion: validated CSV backend upload, metadata persistence, list/detail APIs, and browser upload/library are implemented; end-to-end browser verification remains.
 - [x] M3 — Profiling: schema, missingness, uniqueness, summaries, numeric distributions, and correlations via the read-only profile API.
-- [ ] M4 — Quality rules: duplicates, validity, consistency, and issue evidence.
-- [ ] M5 — Explainable DQS: documented component formulas and active-weight normalization.
+- [ ] M4 — Quality rules: implemented missingness, exact duplicates, inferred numeric type mismatch, and categorical whitespace/case findings with evidence; explicit user-defined schema/domain validation and browser visualization remain.
+- [x] M5 — Explainable DQS: completeness, validity, uniqueness, and consistency components expose numerators/denominators; inapplicable dimensions are excluded and active weights are renormalized.
 - [ ] M6 — Anomaly detection: IQR, robust Z-score, and Isolation Forest.
 - [ ] M7 — Safe cleaning: preview, confirmation, and immutable dataset versions.
 - [ ] M8 — ML readiness: target checks, imbalance, leakage warnings, and baseline models.

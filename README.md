@@ -4,15 +4,18 @@
 
 DataSentry is a research-oriented full-stack application that profiles tabular datasets, detects quality issues using statistical, rule-based, and machine-learning techniques, recommends transparent cleaning actions, and evaluates how data defects affect downstream ML models.
 
-> **Status:** The FastAPI backend supports validated CSV ingestion, SQLite metadata persistence, dataset listing/detail, and a read-only statistical profiling endpoint. The Next.js dashboard provides API status, dataset metrics, a dataset library, and CSV upload. Frontend lint, TypeScript, and production-build checks pass in GitHub Actions. Live browser upload verification and quality-rule, cleaning, ML-readiness, and research modules remain in progress.
+> **Status:** The FastAPI backend supports validated CSV ingestion, SQLite metadata persistence, dataset listing/detail, read-only statistical profiling, and a read-only quality assessment with an explainable Data Quality Score (DQS). The Next.js dashboard provides API status, dataset metrics, a dataset library, and CSV upload. Frontend lint, TypeScript, and production-build checks are enforced in GitHub Actions. Quality-report visualization, live browser upload verification, configurable business-domain schemas, cleaning, ML-readiness, and research modules remain in progress.
 
 ## Current capabilities
 
 - CSV upload with extension/header validation, UTF-8/Windows-1252 decoding, byte/row/column limits, generated storage names, SHA-256 fingerprints, and metadata persistence.
 - Dataset list/detail APIs that never expose internal storage paths.
 - Read-only dataset profiling: inferred column types, missingness, unique counts, numeric summaries, categorical frequencies, numeric histograms, and Pearson correlations (up to 20 numeric columns).
+- Read-only quality assessment for missing values, exact duplicate rows, likely numeric type mismatches, and categorical whitespace/case variants.
+- Explainable DQS with completeness (30%), validity (30%), uniqueness (20%), and consistency (20%); inapplicable components are excluded and active weights are renormalized.
 - Browser workspace with API status, dataset listing, CSV upload, upload feedback, and refresh.
-- Rule-based quality checks, explainable DQS, anomaly detection, cleaning previews, ML readiness, and reproducible corruption experiments are planned next.
+
+Quality findings are evidence for review, not automatic corrections. The current validity detector infers numeric-like columns conservatively; business-specific domain constraints require an explicit expected schema and are not guessed. Case and whitespace variants are review flags. The endpoint does not mutate or delete source data.
 
 ## Technology
 
@@ -22,13 +25,27 @@ DataSentry is a research-oriented full-stack application that profiles tabular d
 
 ## Dataset API
 
-- `POST /api/datasets/upload` — multipart CSV upload; response contains safe metadata.
-- `GET /api/datasets` — list dataset metadata.
-- `GET /api/datasets/{id}` — retrieve one dataset.
-- `GET /api/datasets/{id}/profile` — generate a read-only statistical profile on demand.
-- `GET /api/health` and `GET /api/overview` — service and database status.
+- \`POST /api/datasets/upload\` — multipart CSV upload; response contains safe metadata.
+- \`GET /api/datasets\` — list dataset metadata.
+- \`GET /api/datasets/{id}\` — retrieve one dataset.
+- \`GET /api/datasets/{id}/profile\` — generate a read-only statistical profile on demand.
+- \`GET /api/datasets/{id}/quality\` — generate rule-based issue evidence and an explainable DQS on demand.
+- \`GET /api/health\` and \`GET /api/overview\` — service and database status.
 
-Initial backend limits: 10 MiB, 100,000 data rows, and 200 columns. Uploaded files use generated UUID storage names; originals are not modified. Profiles are computed on request and are not persisted as separate records yet.
+### Quality assessment method
+
+The DQS components are each scored from 0–100 with explicit numerators and denominators:
+
+- Completeness: non-missing cells / all cells.
+- Validity: finite, parseable values / non-missing values in inferred numeric-like columns. A column is considered numeric-like when at least 80% of its non-missing values parse as finite numbers and at least two values are valid.
+- Uniqueness: rows excluding duplicate occurrences after the first / all rows.
+- Consistency: categorical values without detected surrounding whitespace or case-only variants / non-missing categorical values.
+
+The nominal weights are 30%, 30%, 20%, and 20%. If a component has no assessable denominator, it is marked inapplicable and the remaining weights are renormalized. The overall score is a weighted mean of applicable components. The report includes component numerators, denominators, active weights, issue severity, affected counts, and one-based data-row evidence (excluding the header).
+
+Severity is high at an affected rate of at least 20%, medium at 5% to below 20%, and low below 5%. Exact duplicate detection counts repeated occurrences after the first. Missing-value behavior follows pandas CSV parsing defaults. The numeric type check is not a substitute for business-domain validation; no arbitrary value ranges are inferred. Anomaly flags are separate from DQS.
+
+Initial backend upload limits: 10 MiB, 100,000 data rows, and 200 columns. Uploaded files use generated UUID storage names; originals are not modified. Profiles and quality reports are computed on request and are not persisted as separate records.
 
 ## Local setup
 
@@ -36,34 +53,34 @@ Run the backend and frontend in separate terminals.
 
 ### Backend (Windows PowerShell)
 
-```powershell
+\`\`\`powershell
 cd backend
 py -3.12 -m venv .venv
-.\.venv\Scripts\Activate.ps1
+.\\.venv\\Scripts\\Activate.ps1
 pip install -r requirements.txt
 $env:PYTHONPATH = "."
 pytest -q
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
+\`\`\`
 
 ### Frontend (Windows PowerShell)
 
-```powershell
+\`\`\`powershell
 cd frontend
 Copy-Item .env.example .env.local
 npm install
 npm run dev
-```
+\`\`\`
 
-Open `http://localhost:3000`. The frontend defaults to `http://127.0.0.1:8000`; override `NEXT_PUBLIC_API_BASE_URL` in `.env.local` if the API uses another address. The backend CORS allowlist permits the default localhost frontend origins.
+Open \`http://localhost:3000\`. The frontend defaults to \`http://127.0.0.1:8000\`; override \`NEXT_PUBLIC_API_BASE_URL\` in \`.env.local\` if the API uses another address. The backend CORS allowlist permits the default localhost frontend origins.
 
 Frontend checks:
 
-```powershell
+\`\`\`powershell
 npm run lint
 npm run typecheck
 npm run build
-```
+\`\`\`
 
 ## Research integrity and security
 

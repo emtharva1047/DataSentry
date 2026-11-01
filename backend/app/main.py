@@ -10,6 +10,8 @@ from .models import Dataset  # noqa: F401
 from .schemas import DatasetRead
 from .services.dataset_ingestion import DatasetTooLargeError, DatasetValidationError, MAX_UPLOAD_BYTES, create_dataset
 from .services.dataset_profiling import DatasetFileUnavailableError, profile_dataset
+from .services.dataset_quality import DatasetQualityFileUnavailableError, assess_dataset_quality
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -17,10 +19,11 @@ async def lifespan(_: FastAPI):
     initialize_database()
     yield
 
+
 app = FastAPI(
     title="DataSentry API",
     description="Dataset quality assessment and ML-readiness research prototype.",
-    version="0.2.0",
+    version="0.3.0",
     lifespan=lifespan,
 )
 app.add_middleware(
@@ -31,20 +34,34 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],
 )
 
+
 @app.get("/", tags=["system"])
 def root() -> dict[str, str]:
     return {"service": "DataSentry API", "docs": "/docs"}
+
 
 @app.get("/api/health", tags=["system"])
 def health() -> dict[str, str]:
     return {"status": "ok", "service": "DataSentry API"}
 
+
 @app.get("/api/overview", tags=["system"])
 def overview(db: Session = Depends(get_db)) -> dict[str, str | int]:
     dataset_count = db.scalar(select(func.count()).select_from(Dataset)) or 0
-    return {"api": "online", "database": "connected", "database_engine": "SQLite", "dataset_count": dataset_count}
+    return {
+        "api": "online",
+        "database": "connected",
+        "database_engine": "SQLite",
+        "dataset_count": dataset_count,
+    }
 
-@app.post("/api/datasets/upload", response_model=DatasetRead, status_code=status.HTTP_201_CREATED, tags=["datasets"])
+
+@app.post(
+    "/api/datasets/upload",
+    response_model=DatasetRead,
+    status_code=status.HTTP_201_CREATED,
+    tags=["datasets"],
+)
 async def upload_dataset(file: UploadFile = File(...), db: Session = Depends(get_db)) -> Dataset:
     """Validate and persist one CSV without exposing its server-side path."""
     try:
@@ -57,10 +74,12 @@ async def upload_dataset(file: UploadFile = File(...), db: Session = Depends(get
     finally:
         await file.close()
 
+
 @app.get("/api/datasets", response_model=list[DatasetRead], tags=["datasets"])
 def list_datasets(db: Session = Depends(get_db)) -> list[Dataset]:
     statement = select(Dataset).order_by(Dataset.created_at.desc(), Dataset.id.desc())
     return list(db.scalars(statement).all())
+
 
 @app.get("/api/datasets/{dataset_id}/profile", tags=["profiling"])
 def get_dataset_profile(dataset_id: int, db: Session = Depends(get_db)) -> dict:
@@ -71,6 +90,18 @@ def get_dataset_profile(dataset_id: int, db: Session = Depends(get_db)) -> dict:
     try:
         return profile_dataset(dataset)
     except DatasetFileUnavailableError as exc:
+        raise HTTPException(status_code=410, detail=str(exc)) from exc
+
+
+@app.get("/api/datasets/{dataset_id}/quality", tags=["quality"])
+def get_dataset_quality(dataset_id: int, db: Session = Depends(get_db)) -> dict:
+    """Return rule-based quality issues and an explainable DQS without mutating data."""
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(status_code=404, detail="Dataset not found.")
+    try:
+        return assess_dataset_quality(dataset)
+    except DatasetQualityFileUnavailableError as exc:
         raise HTTPException(status_code=410, detail=str(exc)) from exc
 
 

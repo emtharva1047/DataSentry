@@ -28,12 +28,26 @@ Test example corruption proportions of 1%, 5%, and 10% where meaningful. These a
 
 ## Methods
 
-- Rule checks for missingness, duplicates, and schema/domain constraints.
-- Categorical normalization checks for whitespace/case variants.
+- Rule checks for missingness and exact duplicate rows.
+- Inferred numeric type-drift checks: a column is treated as numeric-like only when at least 80% of non-missing values parse as finite numbers and at least two valid values exist.
+- Categorical consistency checks for surrounding whitespace and case-only variants. Findings require review and are never silently normalized.
+- Future schema-driven domain checks once expected types and allowed ranges can be supplied explicitly.
 - IQR and robust Z-score for univariate numerical outliers.
 - Isolation Forest for multivariate anomaly flags, with preprocessing and contamination settings recorded.
 
-Do not treat every unusual observation as a confirmed error. Compare only detectors applicable to each injected defect type.
+Do not treat every unusual observation as a confirmed error. Compare only detectors applicable to each injected defect type. The current numeric type check does not infer business-specific minimum/maximum constraints.
+
+## Data Quality Score
+
+The implemented DQS has four components:
+- Completeness: 30%; non-missing cells divided by all cells.
+- Validity: 30%; finite, parseable values divided by non-missing values in inferred numeric-like columns.
+- Uniqueness: 20%; rows excluding duplicate occurrences after the first divided by all rows.
+- Consistency: 20%; categorical values without detected whitespace/case inconsistency divided by non-missing categorical values.
+
+Each component is 0–100 with explicit numerator and denominator. A component with no assessable denominator is marked inapplicable; active weights are renormalized before calculating the weighted mean. The report exposes component applicability and active weight total. These weights are a design choice to be examined in sensitivity analysis, not a universal standard. Anomaly flags remain separate from the score.
+
+Severity bands for rule findings are high at >=20% affected, medium at >=5% and <20%, and low below 5%. Evidence includes affected counts, denominators, and one-based data-row numbers (excluding the header).
 
 ## Evaluation metrics
 
@@ -43,19 +57,9 @@ For defect detection: precision, recall, F1, confusion counts, and execution tim
 
 Split the clean reference data into training and test sets before corruption. Corrupt training data only for the primary experiment and keep the test set untouched. Fit imputation, scaling, encoding, and feature selection only on training data. Compare models trained on clean training data, corrupted training data, and cleaned corrupted training data using the same split and model configuration.
 
-## Data Quality Score proposal
-
-Initial component weights:
-- Completeness: 30%.
-- Validity: 30%.
-- Uniqueness: 20%.
-- Consistency: 20%.
-
-Each component is on a 0–100 scale with explicit denominator and applicability rules. If a dimension cannot be assessed, renormalize active weights and disclose this. Keep anomaly counts separate unless evidence supports including them.
-
 ## Threats to validity
 
-Synthetic defects may not represent real-world errors; detector performance depends on distributions and parameters; outlier methods can produce false positives; score weights are design choices; cleaning can remove useful information or introduce bias; downstream results depend on model and split choices.
+Synthetic defects may not represent real-world errors; detector performance depends on distributions and parameters; outlier methods can produce false positives; score weights are design choices; inferred numeric-like columns can misclassify identifiers or numeric-coded categories; categorical case variants may be legitimate; cleaning can remove useful information or introduce bias; downstream results depend on model and split choices.
 
 ## Reproducibility checklist
 

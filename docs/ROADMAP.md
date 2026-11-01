@@ -7,21 +7,23 @@ The project is scoped for one developer. Prioritize a working end-to-end researc
 - [x] CSV upload endpoint with extension, size, row, column, header, and encoding validation.
 - [x] Generated storage names, SHA-256 fingerprint, and metadata persistence.
 - [x] Dataset list/detail endpoints with safe response schemas.
-- [x] Backend API, ingestion, and profiling tests (12 passed with `PYTHONPATH=. pytest -q` in the development environment).
+- [x] Backend API, ingestion, and profiling tests.
 - [x] Next.js App Router dashboard, CSV upload, and dataset library implementation.
 - [x] Automated profiling for inferred types, missingness, uniqueness, numeric summaries, categorical frequencies, distributions, and numeric correlations.
-- [x] Frontend GitHub Actions lint, TypeScript, and production-build checks (all passed on commit `b414bf5`).
+- [x] Frontend GitHub Actions lint, TypeScript, and production-build checks.
 - [ ] Verify a real browser upload and dataset refresh against the running FastAPI service.
 
 **Exit criterion:** A CSV can be uploaded and profiled through the browser. The upload UI and profile API exist; browser-to-API profile interaction remains pending.
 
 ## Week 2 — Profiling and quality detection (Days 8–14)
-- [x] Read-only column profiling and summary endpoint (`GET /api/datasets/{id}/profile`).
-- [ ] Missingness, duplicate, schema/domain, and category inconsistency quality rules with issue evidence.
-- [ ] Explainable DQS with explicit denominators and active-weight normalization.
-- [ ] Store issue evidence, detector, severity, and affected counts.
+- [x] Read-only column profiling and summary endpoint (\`GET /api/datasets/{id}/profile\`).
+- [ ] Missingness, duplicate, schema/domain, and category inconsistency quality rules with issue evidence. Missingness, exact duplicates, inferred numeric type mismatch, and categorical whitespace/case findings are implemented; explicit user-defined schema/domain constraints and browser visualization remain.
+- [x] Explainable DQS with explicit denominators and active-weight normalization.
+- [x] Quality endpoint reports issue evidence, detector code, severity, affected counts, and one-based data-row numbers.
 
-The current profile endpoint computes on demand and does not persist profile snapshots. Numeric histograms use 10 bins; Pearson correlation is limited to the first 20 numeric columns to bound response size. Anomaly flags are intentionally not part of the quality score at this stage.
+The read-only quality endpoint is \`GET /api/datasets/{id}/quality\`. It preserves the uploaded source and computes its report on demand. DQS weights are completeness 30%, validity 30%, uniqueness 20%, and consistency 20%. A component with no assessable denominator is marked inapplicable; remaining weights are renormalized. Validity currently checks inferred numeric-like columns (at least 80% finite numeric parseability and at least two valid values), not user-defined business domains. Categorical whitespace and case variants are review flags; they are not automatically normalized. Severity is high at >=20% affected, medium at >=5% and <20%, and low below 5%.
+
+The profile endpoint also computes on demand and does not persist profile snapshots. Numeric histograms use 10 bins; Pearson correlation is limited to the first 20 numeric columns to bound response size. Anomaly flags are intentionally not part of the quality score.
 
 ## Week 3 — Anomaly, cleaning, and ML readiness (Days 15–21)
 - [ ] IQR, robust Z-score, and Isolation Forest with reproducible parameters.
@@ -31,8 +33,8 @@ The current profile endpoint computes on demand and does not persist profile sna
 ## Week 4 — Research evaluation and delivery (Days 22–30)
 - [ ] Seeded synthetic corruption and ground-truth defect labels.
 - [ ] Precision, recall, F1, runtime, and downstream ML comparisons.
-- [ ] Repeat stochastic runs and report mean/standard deviation.
-- [ ] UI integration, automated tests, research report, and demonstration.
+- [ ] Repeat stochastic experiments and report mean/standard deviation.
+- [ ] UI integration, automated tests, research report, demo script, known limitations, and reproducibility instructions.
 
 ## Scope cuts
 
