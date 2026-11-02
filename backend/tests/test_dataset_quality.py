@@ -124,3 +124,23 @@ def test_quality_returns_gone_when_source_file_is_missing(quality_client):
 
     assert response.status_code == 410
     assert "unavailable" in response.json()["detail"].lower()
+
+def test_quality_evidence_is_bounded_and_uses_one_based_data_rows(quality_client):
+    client, _ = quality_client
+    payload = (
+        "value,record\\n"
+        + "".join(f",row-{index}\\n" for index in range(1, 26))
+    ).encode()
+    dataset_id = _upload(client, "evidence-limit.csv", payload)
+
+    response = client.get(f"/api/datasets/{dataset_id}/quality")
+
+    assert response.status_code == 200
+    issue = next(
+        item
+        for item in response.json()["issues"]
+        if item["code"] == "missing_values" and item["column"] == "value"
+    )
+    row_numbers = issue["evidence"]["row_numbers"]
+    assert issue["affected_count"] == 25
+    assert row_numbers == list(range(1, 21))

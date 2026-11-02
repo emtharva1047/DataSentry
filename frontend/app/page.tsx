@@ -10,11 +10,14 @@ import {
 } from "react";
 import {
   API_DOCS_URL,
+  getDatasetQuality,
   getDatasets,
   getOverview,
   uploadDataset,
   type Dataset,
   type Overview,
+  type QualityComponent,
+  type QualityReport,
 } from "@/lib/api";
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -84,15 +87,213 @@ function EmptyState() {
       </div>
       <h3 className="mt-4 text-base font-semibold text-slate-100">Your workspace is ready</h3>
       <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-400">
-        Upload a CSV dataset to begin. DataSentry will store its metadata here before profiling and quality analysis.
+        Upload a CSV dataset to begin. Once it appears here, run a quality check to review its Data Quality Score and detected issues.
       </p>
     </div>
+  );
+}
+
+function QualityReportPanel({
+  report,
+  isLoading,
+  error,
+}: {
+  report: QualityReport | null;
+  isLoading: boolean;
+  error: string | null;
+}) {
+  if (isLoading) {
+    return (
+      <section id="quality-report" className="surface rounded-2xl p-6" aria-live="polite">
+        <p className="eyebrow">Quality assessment</p>
+        <h2 className="mt-2 text-lg font-semibold text-white">Analyzing dataset quality...</h2>
+        <p className="mt-2 text-sm text-slate-400">The original CSV remains unchanged while DataSentry evaluates its quality.</p>
+        <div className="mt-5 h-2 animate-pulse rounded-full bg-slate-700" />
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section id="quality-report" className="surface rounded-2xl p-6" aria-live="polite">
+        <p className="eyebrow">Quality assessment</p>
+        <h2 className="mt-2 text-lg font-semibold text-white">Assessment could not be completed</h2>
+        <p role="alert" className="mt-2 text-sm text-rose-200">{error}</p>
+        <p className="mt-2 text-xs text-slate-500">Select the dataset again to retry. No source data was changed.</p>
+      </section>
+    );
+  }
+
+  if (!report) {
+    return (
+      <section id="quality-report" className="surface rounded-2xl p-6">
+        <p className="eyebrow">Quality assessment</p>
+        <h2 className="mt-2 text-lg font-semibold text-white">Dataset quality report</h2>
+        <p className="mt-2 text-sm text-slate-400">Choose “Run quality check” beside a dataset to calculate its Data Quality Score and inspect evidence-backed findings.</p>
+      </section>
+    );
+  }
+
+  const components: { label: string; value: QualityComponent }[] = [
+    { label: "Completeness", value: report.data_quality_score.components.completeness },
+    { label: "Validity", value: report.data_quality_score.components.validity },
+    { label: "Uniqueness", value: report.data_quality_score.components.uniqueness },
+    { label: "Consistency", value: report.data_quality_score.components.consistency },
+  ];
+  const overall = report.data_quality_score.overall;
+
+  return (
+    <section id="quality-report" className="surface overflow-hidden rounded-2xl">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-800 px-5 py-5 sm:px-6">
+        <div>
+          <p className="eyebrow">Quality assessment · v{report.quality_version}</p>
+          <h2 className="mt-2 text-lg font-semibold text-white">Data Quality Report</h2>
+          <p className="mt-1 text-xs text-slate-500">{report.filename} · {formatNumber(report.shape.rows)} rows × {formatNumber(report.shape.columns)} columns</p>
+        </div>
+        <span className="rounded-full border border-slate-700 bg-slate-800/70 px-3 py-1 text-xs text-slate-300">
+          {formatNumber(report.issue_count)} findings
+        </span>
+      </div>
+
+      <div className="grid gap-5 p-5 sm:p-6 xl:grid-cols-[minmax(220px,0.75fr)_minmax(0,1.5fr)]">
+        <div className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.045] p-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Overall DQS</p>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-5xl font-semibold tracking-tight text-white">
+              {overall === null ? "N/A" : overall.toFixed(1)}
+            </span>
+            {overall !== null && <span className="text-sm text-slate-500">/ 100</span>}
+          </div>
+          {overall !== null && (
+            <div
+              className="mt-4 h-2 overflow-hidden rounded-full bg-slate-800"
+              role="progressbar"
+              aria-label="Overall Data Quality Score"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={overall}
+            >
+              <div className="h-full rounded-full bg-[#64e5c1]" style={{ width: String(Math.max(0, Math.min(100, overall))) + "%" }} />
+            </div>
+          )}
+          <p className="mt-4 text-xs leading-5 text-slate-400">
+            {overall === null
+              ? "No DQS component has an assessable denominator."
+              : "Weighted mean of applicable components. Inapplicable components are excluded and active weights are renormalized."}
+          </p>
+          <div className="mt-5 grid grid-cols-3 gap-2 border-t border-slate-700/70 pt-4">
+            {(["high", "medium", "low"] as const).map((severity) => (
+              <div key={severity}>
+                <p className="text-xl font-semibold text-white">{report.issues_by_severity[severity]}</p>
+                <p className="text-[10px] uppercase tracking-wider text-slate-500">{severity}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-white">Score breakdown</h3>
+            <p className="text-[11px] text-slate-500">Nominal weights · active weights are renormalized</p>
+          </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {components.map(({ label, value }) => {
+              const activeWeight = value.applicable && report.data_quality_score.active_weight_total > 0
+                ? (value.weight / report.data_quality_score.active_weight_total) * 100
+                : 0;
+              return (
+                <div key={label} className="rounded-xl border border-slate-800 bg-slate-950/35 p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium text-slate-200">{label}</p>
+                    <p className="text-sm font-semibold text-white">
+                      {value.score === null ? "N/A" : value.score.toFixed(1) + "%"}
+                    </p>
+                  </div>
+                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-800">
+                    <div
+                      className="h-full rounded-full bg-[#64e5c1]"
+                      style={{ width: String(value.score ?? 0) + "%" }}
+                    />
+                  </div>
+                  <p className="mt-2 text-[10px] leading-4 text-slate-500">
+                    {formatNumber(value.numerator)} / {formatNumber(value.denominator)} · {value.applicable ? "Active " + activeWeight.toFixed(1) + "% weight" : "Not applicable"}
+                  </p>
+                  <p className="mt-1 text-[10px] leading-4 text-slate-600">{value.basis}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-slate-800 px-5 py-5 sm:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-white">Detected issues</h3>
+            <p className="mt-1 text-xs text-slate-500">Findings include affected counts and bounded, one-based data-row evidence.</p>
+          </div>
+          <span className="text-[11px] text-slate-500">Generated {formatDate(report.generated_at)}</span>
+        </div>
+        {report.issues.length === 0 ? (
+          <div className="mt-4 rounded-xl border border-emerald-300/15 bg-emerald-300/[0.045] px-4 py-5 text-sm text-emerald-100">
+            No rule-based issues were detected by the currently enabled checks.
+          </div>
+        ) : (
+          <ul className="mt-4 space-y-3">
+            {report.issues.map((issue, index) => {
+              const rowNumbers = Array.isArray(issue.evidence.row_numbers)
+                ? issue.evidence.row_numbers.filter((value): value is number => typeof value === "number")
+                : [];
+              const severityClass = issue.severity === "high"
+                ? "border-rose-400/20 bg-rose-400/[0.08] text-rose-200"
+                : issue.severity === "medium"
+                  ? "border-amber-300/20 bg-amber-300/[0.08] text-amber-100"
+                  : "border-slate-600 bg-slate-800/70 text-slate-300";
+              return (
+                <li key={issue.code + ":" + (issue.column ?? "dataset") + ":" + index} className="rounded-xl border border-slate-800 bg-slate-950/35 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={"rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider " + severityClass}>
+                        {issue.severity}
+                      </span>
+                      <span className="text-xs font-semibold text-slate-200">{issue.code.replace(/_/g, " ")}</span>
+                      {issue.column && <span className="rounded-md bg-slate-800 px-2 py-1 font-mono text-[10px] text-slate-400">{issue.column}</span>}
+                    </div>
+                    <span className="text-xs tabular-nums text-slate-400">
+                      {formatNumber(issue.affected_count)} / {formatNumber(issue.denominator)} · {issue.affected_pct.toFixed(2)}%
+                    </span>
+                  </div>
+                  <p className="mt-3 text-sm leading-5 text-slate-300">{issue.message}</p>
+                  {rowNumbers.length > 0 && (
+                    <p className="mt-2 text-[11px] leading-5 text-slate-500">
+                      Data rows: {rowNumbers.slice(0, 10).join(", ")}{rowNumbers.length > 10 ? ", …" : ""}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <div className="mt-5 border-t border-slate-800 pt-4">
+          <details>
+            <summary className="cursor-pointer text-xs font-semibold text-slate-400 hover:text-slate-200">Scoring and detector notes</summary>
+            <ul className="mt-3 list-disc space-y-2 pl-5 text-xs leading-5 text-slate-500">
+              {report.method_notes.map((note) => <li key={note}>{note}</li>)}
+            </ul>
+          </details>
+        </div>
+      </div>
+    </section>
   );
 }
 
 export default function Home() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const [selectedDatasetId, setSelectedDatasetId] = useState<number | null>(null);
+  const [qualityReport, setQualityReport] = useState<QualityReport | null>(null);
+  const [qualityError, setQualityError] = useState<string | null>(null);
+  const [isLoadingQuality, setIsLoadingQuality] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -176,6 +377,24 @@ export default function Home() {
     };
   }, []);
 
+  async function runQualityAssessment(dataset: Dataset) {
+    setSelectedDatasetId(dataset.id);
+    setQualityReport(null);
+    setQualityError(null);
+    setIsLoadingQuality(true);
+
+    try {
+      const report = await getDatasetQuality(dataset.id);
+      setQualityReport(report);
+    } catch (error) {
+      setQualityError(
+        error instanceof Error ? error.message : "Could not run the quality assessment.",
+      );
+    } finally {
+      setIsLoadingQuality(false);
+    }
+  }
+
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.currentTarget.files?.[0] ?? null;
     setApiError(null);
@@ -214,6 +433,7 @@ export default function Home() {
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       await refreshData();
+      await runQualityAssessment(uploaded);
     } catch (error) {
       setApiError(
         error instanceof Error ? error.message : "The upload could not be completed.",
@@ -316,7 +536,7 @@ export default function Home() {
                 Good data starts here<span className="text-[#64e5c1]">.</span>
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-                Bring your tabular data into one place. Upload CSV files now; profiling and quality analysis are the next milestones.
+                Bring your tabular data into one place, then run an explainable quality assessment with evidence-backed findings.
               </p>
             </div>
             <button
@@ -404,6 +624,7 @@ export default function Home() {
                       <th className="px-4 py-3 font-semibold">Dimensions</th>
                       <th className="px-4 py-3 font-semibold">File size</th>
                       <th className="px-4 py-3 font-semibold">Uploaded</th>
+                      <th className="px-4 py-3 font-semibold">Analysis</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -432,6 +653,21 @@ export default function Home() {
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-xs text-slate-400">
                           {formatDate(dataset.created_at)}
+                        </td>
+                        <td className="px-4 py-4">
+                          <button
+                            type="button"
+                            className="secondary-button focus-ring whitespace-nowrap text-[11px]"
+                            onClick={() => void runQualityAssessment(dataset)}
+                            disabled={isLoadingQuality}
+                            aria-label={"Run quality check for " + dataset.filename}
+                          >
+                            {isLoadingQuality && selectedDatasetId === dataset.id
+                              ? "Analyzing..."
+                              : selectedDatasetId === dataset.id && qualityReport
+                                ? "Report open"
+                                : "Run quality check"}
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -521,8 +757,16 @@ export default function Home() {
           </aside>
         </section>
 
+        <div className="mt-6">
+          <QualityReportPanel
+            report={qualityReport}
+            isLoading={isLoadingQuality}
+            error={qualityError}
+          />
+        </div>
+
         <footer className="mt-10 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800/80 pt-5 text-[11px] text-slate-600">
-          <p>DataSentry · Research prototype · Dataset profiling is the next milestone</p>
+          <p>DataSentry · Research prototype · Explainable quality assessment</p>
           <p>Original files are preserved; no automatic cleaning is performed.</p>
         </footer>
       </main>

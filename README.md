@@ -4,7 +4,7 @@
 
 DataSentry is a research-oriented full-stack application that profiles tabular datasets, detects quality issues using statistical, rule-based, and machine-learning techniques, recommends transparent cleaning actions, and evaluates how data defects affect downstream ML models.
 
-> **Status:** The FastAPI backend supports validated CSV ingestion, SQLite metadata persistence, dataset listing/detail, read-only statistical profiling, and a read-only quality assessment with an explainable Data Quality Score (DQS). The Next.js dashboard provides API status, dataset metrics, a dataset library, and CSV upload. Frontend lint, TypeScript, and production-build checks are enforced in GitHub Actions. Quality-report visualization, live browser upload verification, configurable business-domain schemas, cleaning, ML-readiness, and research modules remain in progress.
+> **Status:** The FastAPI backend supports validated CSV ingestion, SQLite metadata persistence, dataset listing/detail, read-only statistical profiling, and a read-only quality assessment with an explainable Data Quality Score (DQS). The Next.js dashboard provides API status, dataset metrics, a dataset library, CSV upload, and an interactive quality report with DQS breakdown and issue evidence. Frontend lint, TypeScript, and production-build checks are enforced in GitHub Actions. Quality-report visualization, live browser upload verification, configurable business-domain schemas, cleaning, ML-readiness, and research modules remain in progress.
 
 ## Current capabilities
 
@@ -14,6 +14,7 @@ DataSentry is a research-oriented full-stack application that profiles tabular d
 - Read-only quality assessment for missing values, exact duplicate rows, likely numeric type mismatches, and categorical whitespace/case variants.
 - Explainable DQS with completeness (30%), validity (30%), uniqueness (20%), and consistency (20%); inapplicable components are excluded and active weights are renormalized.
 - Browser workspace with API status, dataset listing, CSV upload, upload feedback, and refresh.
+- Interactive quality report viewer with overall DQS, component numerators/denominators, severity counts, issue evidence, and detector notes.
 
 Quality findings are evidence for review, not automatic corrections. The current validity detector infers numeric-like columns conservatively; business-specific domain constraints require an explicit expected schema and are not guessed. Case and whitespace variants are review flags. The endpoint does not mutate or delete source data.
 

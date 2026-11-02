@@ -16,6 +16,51 @@ export type Dataset = {
   created_at: string;
 };
 
+export type QualityComponent = {
+  score: number | null;
+  weight: number;
+  applicable: boolean;
+  numerator: number;
+  denominator: number;
+  basis: string;
+};
+
+export type QualityIssue = {
+  code: string;
+  scope: string;
+  column: string | null;
+  severity: "high" | "medium" | "low";
+  affected_count: number;
+  denominator: number;
+  affected_pct: number;
+  message: string;
+  evidence: Record<string, unknown>;
+};
+
+export type QualityReport = {
+  dataset_id: number;
+  filename: string;
+  quality_version: number;
+  generated_at: string;
+  shape: { rows: number; columns: number };
+  issue_count: number;
+  issues_by_severity: { high: number; medium: number; low: number };
+  issues: QualityIssue[];
+  data_quality_score: {
+    overall: number | null;
+    scale: string;
+    active_weight_total: number;
+    weighting: string;
+    components: {
+      completeness: QualityComponent;
+      validity: QualityComponent;
+      uniqueness: QualityComponent;
+      consistency: QualityComponent;
+    };
+  };
+  method_notes: string[];
+};
+
 const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000"
 ).replace(/\/+$/, "");
@@ -53,6 +98,13 @@ export async function getDatasets(): Promise<Dataset[]> {
     cache: "no-store",
   });
   return readResponse<Dataset[]>(response);
+}
+
+export async function getDatasetQuality(datasetId: number): Promise<QualityReport> {
+  const response = await fetch(`${API_BASE_URL}/api/datasets/${datasetId}/quality`, {
+    cache: "no-store",
+  });
+  return readResponse<QualityReport>(response);
 }
 
 export async function uploadDataset(file: File): Promise<Dataset> {
