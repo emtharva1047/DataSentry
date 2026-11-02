@@ -128,8 +128,8 @@ def test_quality_returns_gone_when_source_file_is_missing(quality_client):
 def test_quality_evidence_is_bounded_and_uses_one_based_data_rows(quality_client):
     client, _ = quality_client
     payload = (
-        "value,record\\n"
-        + "".join(f",row-{index}\\n" for index in range(1, 26))
+        "value,record\n"
+        + "".join(f",row-{index}\n" for index in range(1, 26))
     ).encode()
     dataset_id = _upload(client, "evidence-limit.csv", payload)
 
