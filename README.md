@@ -4,7 +4,7 @@
 
 DataSentry is a research-oriented full-stack application that profiles tabular datasets, detects quality issues using statistical, rule-based, and machine-learning techniques, recommends transparent cleaning actions, and evaluates how data defects affect downstream ML models.
 
-> **Status:** The FastAPI backend supports validated CSV ingestion, SQLite metadata persistence, dataset listing/detail, read-only statistical profiling, and a read-only quality assessment with an explainable Data Quality Score (DQS). The Next.js dashboard provides API status, dataset metrics, a dataset library, CSV upload, and an interactive quality report with DQS breakdown and issue evidence. Frontend lint, TypeScript, and production-build checks are enforced in GitHub Actions. Quality-report visualization, live browser upload verification, configurable business-domain schemas, cleaning, ML-readiness, and research modules remain in progress.
+> **Status:** The FastAPI backend supports validated CSV ingestion, SQLite metadata persistence, dataset listing/detail, read-only statistical profiling, and a read-only quality assessment with an explainable Data Quality Score (DQS). The Next.js dashboard provides API status, dataset metrics, a dataset library, CSV upload, and an interactive quality report with DQS breakdown and issue evidence. Frontend lint, TypeScript, and production-build checks are enforced in GitHub Actions. Profile visualization, live browser upload verification, configurable business-domain schemas, cleaning, ML-readiness, and research modules remain in progress.
 
 ## Current capabilities
 
