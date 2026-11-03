@@ -4,19 +4,20 @@
 
 DataSentry is a research-oriented full-stack application that profiles tabular datasets, detects quality issues using statistical, rule-based, and machine-learning techniques, recommends transparent cleaning actions, and evaluates how data defects affect downstream ML models.
 
-> **Status:** The FastAPI backend supports validated CSV ingestion, SQLite metadata persistence, dataset listing/detail, read-only statistical profiling, and a read-only quality assessment with an explainable Data Quality Score (DQS). The Next.js dashboard provides API status, dataset metrics, a dataset library, CSV upload, and an interactive quality report with DQS breakdown and issue evidence. Frontend lint, TypeScript, and production-build checks are enforced in GitHub Actions. Profile visualization, live browser upload verification, configurable business-domain schemas, cleaning, ML-readiness, and research modules remain in progress.
+> **Status:** The FastAPI backend supports validated CSV ingestion, SQLite metadata persistence, dataset listing/detail, read-only statistical profiling, inferred quality assessment with an explainable Data Quality Score (DQS), and explicit caller-supplied schema/domain validation. The Next.js dashboard provides API status, dataset metrics, a dataset library, CSV upload, and an interactive quality report with DQS breakdown and issue evidence. Frontend lint, TypeScript, and production-build checks are enforced in GitHub Actions. Profile visualization, live browser upload verification, anomaly detection, cleaning, ML-readiness, and research modules remain in progress.
 
 ## Current capabilities
 
 - CSV upload with extension/header validation, UTF-8/Windows-1252 decoding, byte/row/column limits, generated storage names, SHA-256 fingerprints, and metadata persistence.
 - Dataset list/detail APIs that never expose internal storage paths.
 - Read-only dataset profiling: inferred column types, missingness, unique counts, numeric summaries, categorical frequencies, numeric histograms, and Pearson correlations (up to 20 numeric columns).
-- Read-only quality assessment for missing values, exact duplicate rows, likely numeric type mismatches, and categorical whitespace/case variants.
+- Read-only inferred quality assessment for missing values, exact duplicate rows, likely numeric type mismatches, and categorical whitespace/case variants.
+- Explicit schema/domain validation for expected columns, required values, string/integer/number/boolean types, inclusive numeric ranges, allowed-value sets, and unexpected columns.
 - Explainable DQS with completeness (30%), validity (30%), uniqueness (20%), and consistency (20%); inapplicable components are excluded and active weights are renormalized.
 - Browser workspace with API status, dataset listing, CSV upload, upload feedback, and refresh.
 - Interactive quality report viewer with overall DQS, component numerators/denominators, severity counts, issue evidence, and detector notes.
 
-Quality findings are evidence for review, not automatic corrections. The current validity detector infers numeric-like columns conservatively; business-specific domain constraints require an explicit expected schema and are not guessed. Case and whitespace variants are review flags. The endpoint does not mutate or delete source data.
+Quality findings are evidence for review, not automatic corrections. The inferred validity detector is conservative; explicit business rules must be supplied rather than guessed. Schema validation is available through the API and is supplemental to the inference-based DQS in this version. Case and whitespace variants are review flags. The endpoint does not mutate or delete source data.
 
 ## Technology
 
@@ -26,12 +27,43 @@ Quality findings are evidence for review, not automatic corrections. The current
 
 ## Dataset API
 
-- `POST /api/datasets/upload` — multipart CSV upload; response contains safe metadata.
-- `GET /api/datasets` — list dataset metadata.
-- `GET /api/datasets/{id}` — retrieve one dataset.
-- `GET /api/datasets/{id}/profile` — generate a read-only statistical profile on demand.
-- `GET /api/datasets/{id}/quality` — generate rule-based issue evidence and an explainable DQS on demand.
-- `GET /api/health` and `GET /api/overview` — service and database status.
+- \`POST /api/datasets/upload\` — multipart CSV upload; response contains safe metadata.
+- \`GET /api/datasets\` — list dataset metadata.
+- \`GET /api/datasets/{id}\` — retrieve one dataset.
+- \`GET /api/datasets/{id}/profile\` — generate a read-only statistical profile on demand.
+- \`GET /api/datasets/{id}/quality\` — generate inferred rule-based issue evidence and an explainable DQS on demand.
+- \`POST /api/datasets/{id}/quality/validate\` — validate against a caller-supplied schema/domain contract.
+- \`GET /api/health\` and \`GET /api/overview\` — service and database status.
+
+### Explicit schema validation
+
+Submit a JSON body to \`POST /api/datasets/{id}/quality/validate\`:
+
+\`\`\`json
+{
+  "columns": {
+    "age": {
+      "type": "integer",
+      "required": true,
+      "minimum": 0,
+      "maximum": 120
+    },
+    "status": {
+      "type": "string",
+      "allowed_values": ["active", "inactive"],
+      "case_sensitive": false
+    },
+    "enabled": {
+      "type": "boolean"
+    }
+  },
+  "allow_extra_columns": false
+}
+\`\`\`
+
+Supported types are \`string\`, \`integer\`, \`number\`, and \`boolean\`. Integer values must be finite whole numbers; number values must be finite. Boolean parsing accepts true/false, 1/0, and yes/no (case-insensitive, surrounding whitespace ignored). Numeric minimum and maximum bounds are inclusive and apply only to integer/number columns. Allowed values are exact by default; case-insensitive matching is opt-in and does not trim whitespace. Missing expected columns, missing required cells, type mismatches, range violations, disallowed values, and unexpected columns are returned as separate findings with affected counts, severity, and bounded one-based data-row evidence.
+
+The schema request is validated before the CSV is read. Unknown schema fields, empty schema names, more than 200 expected columns, empty allowed-value lists, and contradictory numeric bounds are rejected with HTTP 422. A dataset that does not exist returns 404; a stored source file that is missing or unsafe returns 410. Validation is read-only: the uploaded bytes and SHA-256 fingerprint remain unchanged. These schema findings are supplemental to the inference-based DQS and do not change its component scores in this version.
 
 ### Quality assessment method
 
@@ -54,34 +86,34 @@ Run the backend and frontend in separate terminals.
 
 ### Backend (Windows PowerShell)
 
-```powershell
+\`\`\`powershell
 cd backend
 py -3.12 -m venv .venv
-.\.venv\Scripts\Activate.ps1
+.\\.venv\\Scripts\\Activate.ps1
 pip install -r requirements.txt
 $env:PYTHONPATH = "."
 pytest -q
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
+\`\`\`
 
 ### Frontend (Windows PowerShell)
 
-```powershell
+\`\`\`powershell
 cd frontend
 Copy-Item .env.example .env.local
 npm install
 npm run dev
-```
+\`\`\`
 
-Open `http://localhost:3000`. The frontend defaults to `http://127.0.0.1:8000`; override `NEXT_PUBLIC_API_BASE_URL` in `.env.local` if the API uses another address. The backend CORS allowlist permits the default localhost frontend origins.
+Open \`http://localhost:3000\`. The frontend defaults to \`http://127.0.0.1:8000\`; override \`NEXT_PUBLIC_API_BASE_URL\` in \`.env.local\` if the API uses another address. The backend CORS allowlist permits the default localhost frontend origins.
 
 Frontend checks:
 
-```powershell
+\`\`\`powershell
 npm run lint
 npm run typecheck
 npm run build
-```
+\`\`\`
 
 ## Research integrity and security
 
