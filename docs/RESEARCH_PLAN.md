@@ -31,6 +31,7 @@ Test example corruption proportions of 1%, 5%, and 10% where meaningful. These a
 - Rule checks for missingness and exact duplicate rows.
 - Inferred numeric type-drift checks: a column is treated as numeric-like only when at least 80% of non-missing values parse as finite numbers and at least two valid values exist.
 - Categorical consistency checks for surrounding whitespace and case-only variants. Findings require review and are never silently normalized.
+- Explicit schema/domain validation through a caller-supplied contract. Supported column types are string, integer, number, and boolean; contracts can specify required values, inclusive numeric bounds, allowed-value sets, case sensitivity, and whether undeclared columns are allowed. Missing expected columns, missing required cells, type mismatches, out-of-range values, disallowed values, and unexpected columns are reported with bounded row evidence. These findings are supplemental to the inference-based DQS in the current implementation.
 - Future schema-driven domain checks once expected types and allowed ranges can be supplied explicitly.
 - IQR and robust Z-score for univariate numerical outliers.
 - Isolation Forest for multivariate anomaly flags, with preprocessing and contamination settings recorded.
@@ -45,7 +46,7 @@ The implemented DQS has four components:
 - Uniqueness: 20%; rows excluding duplicate occurrences after the first divided by all rows.
 - Consistency: 20%; categorical values without detected whitespace/case inconsistency divided by non-missing categorical values.
 
-Each component is 0–100 with explicit numerator and denominator. A component with no assessable denominator is marked inapplicable; active weights are renormalized before calculating the weighted mean. The report exposes component applicability and active weight total. These weights are a design choice to be examined in sensitivity analysis, not a universal standard. Anomaly flags remain separate from the score.
+Each component is 0–100 with explicit numerator and denominator. A component with no assessable denominator is marked inapplicable; active weights are renormalized before calculating the weighted mean. The report exposes component applicability and active weight total. These weights are a design choice to be examined in sensitivity analysis, not a universal standard. Anomaly flags remain separate from the score. Explicit schema validation is reported independently and does not alter the DQS in this version.
 
 Severity bands for rule findings are high at >=20% affected, medium at >=5% and <20%, and low below 5%. Evidence includes affected counts, denominators, and one-based data-row numbers (excluding the header).
 
@@ -59,7 +60,7 @@ Split the clean reference data into training and test sets before corruption. Co
 
 ## Threats to validity
 
-Synthetic defects may not represent real-world errors; detector performance depends on distributions and parameters; outlier methods can produce false positives; score weights are design choices; inferred numeric-like columns can misclassify identifiers or numeric-coded categories; categorical case variants may be legitimate; cleaning can remove useful information or introduce bias; downstream results depend on model and split choices.
+Synthetic defects may not represent real-world errors; detector performance depends on distributions and parameters; outlier methods can produce false positives; score weights are design choices; inferred numeric-like columns can misclassify identifiers or numeric-coded categories; categorical case variants may be legitimate; schema constraints may be incomplete or incorrect; cleaning can remove useful information or introduce bias; downstream results depend on model and split choices.
 
 ## Reproducibility checklist
 

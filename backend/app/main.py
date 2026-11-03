@@ -7,10 +7,11 @@ from sqlalchemy.orm import Session
 
 from .database import get_db, initialize_database
 from .models import Dataset  # noqa: F401
-from .schemas import DatasetRead
+from .schemas import DatasetRead, DatasetSchemaValidationRequest
 from .services.dataset_ingestion import DatasetTooLargeError, DatasetValidationError, MAX_UPLOAD_BYTES, create_dataset
 from .services.dataset_profiling import DatasetFileUnavailableError, profile_dataset
 from .services.dataset_quality import DatasetQualityFileUnavailableError, assess_dataset_quality
+from .services.dataset_schema_validation import validate_dataset_schema
 
 
 @asynccontextmanager
@@ -95,12 +96,28 @@ def get_dataset_profile(dataset_id: int, db: Session = Depends(get_db)) -> dict:
 
 @app.get("/api/datasets/{dataset_id}/quality", tags=["quality"])
 def get_dataset_quality(dataset_id: int, db: Session = Depends(get_db)) -> dict:
-    """Return rule-based quality issues and an explainable DQS without mutating data."""
+    """Return inferred quality issues and an explainable DQS without mutating data."""
     dataset = db.get(Dataset, dataset_id)
     if dataset is None:
         raise HTTPException(status_code=404, detail="Dataset not found.")
     try:
         return assess_dataset_quality(dataset)
+    except DatasetQualityFileUnavailableError as exc:
+        raise HTTPException(status_code=410, detail=str(exc)) from exc
+
+
+@app.post("/api/datasets/{dataset_id}/quality/validate", tags=["quality"])
+def post_dataset_schema_validation(
+    dataset_id: int,
+    request: DatasetSchemaValidationRequest,
+    db: Session = Depends(get_db),
+) -> dict:
+    """Validate a dataset against explicit caller-supplied schema/domain constraints."""
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(status_code=404, detail="Dataset not found.")
+    try:
+        return validate_dataset_schema(dataset, request.model_dump())
     except DatasetQualityFileUnavailableError as exc:
         raise HTTPException(status_code=410, detail=str(exc)) from exc
 
