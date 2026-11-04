@@ -7,7 +7,7 @@
 - [x] M3 — Profiling: schema, missingness, uniqueness, summaries, numeric distributions, and correlations via the read-only profile API.
 - [ ] M4 — Quality rules: inferred missingness, exact duplicates, numeric type mismatch, and categorical whitespace/case findings are implemented; explicit schema/domain validation is available through a read-only API. Dashboard schema controls and live browser verification remain.
 - [x] M5 — Explainable DQS: completeness, validity, uniqueness, and consistency components expose numerators/denominators; inapplicable dimensions are excluded and active weights are renormalized.
-- [ ] M6 — Anomaly detection: IQR, robust Z-score, and Isolation Forest.
+- [ ] M6 — Anomaly detection: read-only IQR, modified robust Z-score, and seeded Isolation Forest API implemented; dashboard integration and controlled evaluation remain.
 - [ ] M7 — Safe cleaning: preview, confirmation, and immutable dataset versions.
 - [ ] M8 — ML readiness: target checks, imbalance, leakage warnings, and baseline models.
 - [ ] M9 — Research lab: seeded corruption, ground truth, metrics, and runtime benchmarks.

@@ -58,3 +58,40 @@ class DatasetSchemaValidationRequest(BaseModel):
         if invalid:
             raise ValueError("schema column names must be non-empty and at most 255 characters")
         return value
+
+
+class AnomalyDetectionRequest(BaseModel):
+    """Reproducible parameters for read-only numerical anomaly detection."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    detectors: list[Literal["iqr", "robust_zscore", "isolation_forest"]] = Field(
+        default_factory=lambda: ["iqr", "robust_zscore", "isolation_forest"],
+        min_length=1,
+        max_length=3,
+    )
+    columns: list[str] | None = Field(default=None, min_length=1, max_length=200)
+    iqr_multiplier: float = Field(default=1.5, gt=0, le=10, allow_inf_nan=False)
+    robust_z_threshold: float = Field(default=3.5, gt=0, le=20, allow_inf_nan=False)
+    contamination: float = Field(default=0.05, gt=0, le=0.5, allow_inf_nan=False)
+    random_state: int = Field(default=42, ge=0, le=4_294_967_295)
+    n_estimators: int = Field(default=100, ge=50, le=500)
+    max_evidence_rows: int = Field(default=20, ge=1, le=100)
+
+    @field_validator("detectors")
+    @classmethod
+    def validate_detectors(cls, value: list[str]) -> list[str]:
+        if len(value) != len(set(value)):
+            raise ValueError("detectors must not contain duplicates")
+        return value
+
+    @field_validator("columns")
+    @classmethod
+    def validate_columns(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return value
+        if any(not name.strip() or len(name) > 255 for name in value):
+            raise ValueError("column names must be non-empty and at most 255 characters")
+        if len(value) != len(set(value)):
+            raise ValueError("columns must not contain duplicates")
+        return value

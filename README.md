@@ -27,19 +27,20 @@ Quality findings are evidence for review, not automatic corrections. The inferre
 
 ## Dataset API
 
-- \`POST /api/datasets/upload\` — multipart CSV upload; response contains safe metadata.
-- \`GET /api/datasets\` — list dataset metadata.
-- \`GET /api/datasets/{id}\` — retrieve one dataset.
-- \`GET /api/datasets/{id}/profile\` — generate a read-only statistical profile on demand.
-- \`GET /api/datasets/{id}/quality\` — generate inferred rule-based issue evidence and an explainable DQS on demand.
-- \`POST /api/datasets/{id}/quality/validate\` — validate against a caller-supplied schema/domain contract.
-- \`GET /api/health\` and \`GET /api/overview\` — service and database status.
+- `POST /api/datasets/upload` — multipart CSV upload; response contains safe metadata.
+- `GET /api/datasets` — list dataset metadata.
+- `GET /api/datasets/{id}` — retrieve one dataset.
+- `GET /api/datasets/{id}/profile` — generate a read-only statistical profile on demand.
+- `GET /api/datasets/{id}/quality` — generate inferred rule-based issue evidence and an explainable DQS on demand.
+- `POST /api/datasets/{id}/quality/validate` — validate against a caller-supplied schema/domain contract.
+- `POST /api/datasets/{id}/anomalies` — run selected read-only numerical anomaly detectors with reproducible parameters.
+- `GET /api/health` and `GET /api/overview` — service and database status.
 
 ### Explicit schema validation
 
-Submit a JSON body to \`POST /api/datasets/{id}/quality/validate\`:
+Submit a JSON body to `POST /api/datasets/{id}/quality/validate`:
 
-\`\`\`json
+```json
 {
   "columns": {
     "age": {
@@ -59,9 +60,9 @@ Submit a JSON body to \`POST /api/datasets/{id}/quality/validate\`:
   },
   "allow_extra_columns": false
 }
-\`\`\`
+```
 
-Supported types are \`string\`, \`integer\`, \`number\`, and \`boolean\`. Integer values must be finite whole numbers; number values must be finite. Boolean parsing accepts true/false, 1/0, and yes/no (case-insensitive, surrounding whitespace ignored). Numeric minimum and maximum bounds are inclusive and apply only to integer/number columns. Allowed values are exact by default; case-insensitive matching is opt-in and does not trim whitespace. Missing expected columns, missing required cells, type mismatches, range violations, disallowed values, and unexpected columns are returned as separate findings with affected counts, severity, and bounded one-based data-row evidence.
+Supported types are `string`, `integer`, `number`, and `boolean`. Integer values must be finite whole numbers; number values must be finite. Boolean parsing accepts true/false, 1/0, and yes/no (case-insensitive, surrounding whitespace ignored). Numeric minimum and maximum bounds are inclusive and apply only to integer/number columns. Allowed values are exact by default; case-insensitive matching is opt-in and does not trim whitespace. Missing expected columns, missing required cells, type mismatches, range violations, disallowed values, and unexpected columns are returned as separate findings with affected counts, severity, and bounded one-based data-row evidence.
 
 The schema request is validated before the CSV is read. Unknown schema fields, empty schema names, more than 200 expected columns, empty allowed-value lists, and contradictory numeric bounds are rejected with HTTP 422. A dataset that does not exist returns 404; a stored source file that is missing or unsafe returns 410. Validation is read-only: the uploaded bytes and SHA-256 fingerprint remain unchanged. These schema findings are supplemental to the inference-based DQS and do not change its component scores in this version.
 
@@ -86,7 +87,7 @@ Run the backend and frontend in separate terminals.
 
 ### Backend (Windows PowerShell)
 
-\`\`\`powershell
+```powershell
 cd backend
 py -3.12 -m venv .venv
 .\\.venv\\Scripts\\Activate.ps1
@@ -94,26 +95,26 @@ pip install -r requirements.txt
 $env:PYTHONPATH = "."
 pytest -q
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-\`\`\`
+```
 
 ### Frontend (Windows PowerShell)
 
-\`\`\`powershell
+```powershell
 cd frontend
 Copy-Item .env.example .env.local
 npm install
 npm run dev
-\`\`\`
+```
 
-Open \`http://localhost:3000\`. The frontend defaults to \`http://127.0.0.1:8000\`; override \`NEXT_PUBLIC_API_BASE_URL\` in \`.env.local\` if the API uses another address. The backend CORS allowlist permits the default localhost frontend origins.
+Open `http://localhost:3000`. The frontend defaults to `http://127.0.0.1:8000`; override `NEXT_PUBLIC_API_BASE_URL` in `.env.local` if the API uses another address. The backend CORS allowlist permits the default localhost frontend origins.
 
 Frontend checks:
 
-\`\`\`powershell
+```powershell
 npm run lint
 npm run typecheck
 npm run build
-\`\`\`
+```
 
 ## Research integrity and security
 
