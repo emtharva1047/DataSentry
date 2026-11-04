@@ -32,9 +32,11 @@ Test example corruption proportions of 1%, 5%, and 10% where meaningful. These a
 - Inferred numeric type-drift checks: a column is treated as numeric-like only when at least 80% of non-missing values parse as finite numbers and at least two valid values exist.
 - Categorical consistency checks for surrounding whitespace and case-only variants. Findings require review and are never silently normalized.
 - Explicit schema/domain validation through a caller-supplied contract. Supported column types are string, integer, number, and boolean; contracts can specify required values, inclusive numeric bounds, allowed-value sets, case sensitivity, and whether undeclared columns are allowed. Missing expected columns, missing required cells, type mismatches, out-of-range values, disallowed values, and unexpected columns are reported with bounded row evidence. These findings are supplemental to the inference-based DQS in the current implementation.
-- Future schema-driven domain checks once expected types and allowed ranges can be supplied explicitly.
-- IQR and robust Z-score for univariate numerical outliers.
-- Isolation Forest for multivariate anomaly flags, with preprocessing and contamination settings recorded.
+- IQR anomaly flags are available through the read-only API using configurable Q1/Q3 fences (default multiplier 1.5).
+- Modified robust Z-score flags use 0.67448975*(x - median)/MAD (default absolute threshold 3.5); zero-MAD columns are skipped and reported.
+- Isolation Forest uses a caller-supplied contamination and random seed, median imputation, robust feature scaling, bounded per-tree samples, and a single worker. It requires at least ten rows with observed numeric values.
+- Numeric candidates require at least four finite values and at least 80% finite parseability among non-missing values. These are implementation eligibility rules to evaluate, not universal data-quality standards.
+- The current anomaly API returns bounded one-based row evidence and the source SHA-256 fingerprint. It is read-only; anomaly flags are not incorporated into DQS and never delete records. Dashboard integration and ground-truth detector evaluation remain outstanding.
 
 Do not treat every unusual observation as a confirmed error. Compare only detectors applicable to each injected defect type. The current numeric type check does not infer business-specific minimum/maximum constraints.
 
@@ -49,6 +51,8 @@ The implemented DQS has four components:
 Each component is 0–100 with explicit numerator and denominator. A component with no assessable denominator is marked inapplicable; active weights are renormalized before calculating the weighted mean. The report exposes component applicability and active weight total. These weights are a design choice to be examined in sensitivity analysis, not a universal standard. Anomaly flags remain separate from the score. Explicit schema validation is reported independently and does not alter the DQS in this version.
 
 Severity bands for rule findings are high at >=20% affected, medium at >=5% and <20%, and low below 5%. Evidence includes affected counts, denominators, and one-based data-row numbers (excluding the header).
+
+The current anomaly endpoint is `POST /api/datasets/{id}/anomalies`. Record detector selection, IQR multiplier, modified-Z threshold, contamination, estimator count, random seed, numeric-column eligibility, and software versions for every evaluation run. Isolation Forest scores are anomaly rankings, not calibrated probabilities. Compare only detector/defect pairs for which the method is applicable.
 
 ## Evaluation metrics
 
