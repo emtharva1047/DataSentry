@@ -173,3 +173,26 @@ def test_anomaly_endpoint_returns_404_and_410(anomaly_client):
         json={"detectors": ["iqr"]},
     )
     assert unavailable.status_code == 410
+
+
+def test_anomaly_row_evidence_is_bounded(anomaly_client):
+    client, _ = anomaly_client
+    rows = [str(value) for value in range(1, 21)] + ["1000", "2000", "3000", "4000"]
+    payload = ("value\n" + "\n".join(rows) + "\n").encode()
+    dataset_id = _upload(client, payload)
+
+    response = client.post(
+        f"/api/datasets/{dataset_id}/anomalies",
+        json={"detectors": ["iqr"], "max_evidence_rows": 2},
+    )
+
+    assert response.status_code == 200
+    result = response.json()["detectors"]["iqr"]
+    column = result["columns"][0]
+    assert column["flagged_count"] == 4
+    assert column["flagged_row_numbers"] == [21, 22]
+    assert column["flagged_row_numbers_truncated"] is True
+    assert len(column["evidence"]) == 2
+    assert result["flagged_row_count"] == 4
+    assert result["flagged_row_numbers"] == [21, 22]
+    assert result["flagged_row_numbers_truncated"] is True

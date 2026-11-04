@@ -146,7 +146,8 @@ def _run_iqr(
                 "lower_fence": _safe_float(lower_norm * reference_scale),
                 "upper_fence": _safe_float(upper_norm * reference_scale),
                 "flagged_count": int(len(flagged_indexes)),
-                "flagged_row_numbers": _row_numbers(flagged_indexes),
+                "flagged_row_numbers": _row_numbers(flagged_indexes)[:evidence_limit],
+                "flagged_row_numbers_truncated": len(flagged_indexes) > evidence_limit,
                 "evidence": evidence,
                 "evidence_truncated": len(flagged_indexes) > len(evidence),
             }
@@ -169,7 +170,8 @@ def _run_iqr(
             "parameters": {"multiplier": multiplier},
             "columns": column_results,
             "flagged_row_count": len(all_flagged),
-            "flagged_row_numbers": sorted(index + 1 for index in all_flagged),
+            "flagged_row_numbers": sorted(index + 1 for index in all_flagged)[:evidence_limit],
+            "flagged_row_numbers_truncated": len(all_flagged) > evidence_limit,
         },
         all_flagged,
     )
@@ -232,7 +234,8 @@ def _run_robust_zscore(
                 "median": _safe_float(median * reference_scale),
                 "mad": _safe_float(mad * reference_scale),
                 "flagged_count": int(len(flagged_indexes)),
-                "flagged_row_numbers": _row_numbers(flagged_indexes),
+                "flagged_row_numbers": _row_numbers(flagged_indexes)[:evidence_limit],
+                "flagged_row_numbers_truncated": len(flagged_indexes) > evidence_limit,
                 "evidence": evidence,
                 "evidence_truncated": len(flagged_indexes) > len(evidence),
             }
@@ -244,7 +247,8 @@ def _run_robust_zscore(
         "status": status,
         "columns": column_results,
         "flagged_row_count": len(all_flagged),
-        "flagged_row_numbers": sorted(index + 1 for index in all_flagged),
+        "flagged_row_numbers": sorted(index + 1 for index in all_flagged)[:evidence_limit],
+            "flagged_row_numbers_truncated": len(all_flagged) > evidence_limit,
     }
     if completed_columns:
         result["parameters"] = {"modified_z_threshold": threshold}
@@ -392,7 +396,8 @@ def _run_isolation_forest(
             "preprocessing": preprocessing,
             "rows_scored": int(len(row_indexes)),
             "flagged_count": int(len(flagged_indexes)),
-            "flagged_row_numbers": _row_numbers(flagged_indexes),
+            "flagged_row_numbers": _row_numbers(flagged_indexes)[:evidence_limit],
+                "flagged_row_numbers_truncated": len(flagged_indexes) > evidence_limit,
             "evidence": evidence,
             "evidence_truncated": len(flagged_indexes) > len(evidence),
         },
