@@ -196,3 +196,50 @@ def test_anomaly_row_evidence_is_bounded(anomaly_client):
     assert result["flagged_row_count"] == 4
     assert result["flagged_row_numbers"] == [21, 22]
     assert result["flagged_row_numbers_truncated"] is True
+
+def test_anomaly_report_matches_dashboard_response_contract(anomaly_client):
+    """Keep the response fields consumed by the dashboard stable."""
+    client, _ = anomaly_client
+    rows = [f"{value},{value * 2}" for value in range(1, 13)] + ["1000,2000"]
+    payload = ("value,second\n" + "\n".join(rows) + "\n").encode()
+    dataset_id = _upload(client, payload)
+
+    response = client.post(
+        f"/api/datasets/{dataset_id}/anomalies",
+        json={
+            "detectors": ["iqr", "robust_zscore", "isolation_forest"],
+            "random_state": 7,
+            "n_estimators": 50,
+            "max_evidence_rows": 5,
+        },
+    )
+
+    assert response.status_code == 200
+    report = response.json()
+    assert report["dataset_id"] == dataset_id
+    assert report["shape"] == {"rows": 13, "columns": 2}
+    assert report["source_sha256"]
+    assert report["parameters"]["random_state"] == 7
+    assert report["parameters"]["n_estimators"] == 50
+    assert len(report["numeric_columns"]) == 2
+    assert set(report["detectors"]) == {"iqr", "robust_zscore", "isolation_forest"}
+    assert set(report["summary"]["flagged_count_by_detector"]) == {
+        "iqr",
+        "robust_zscore",
+        "isolation_forest",
+    }
+    assert isinstance(report["summary"]["flagged_row_numbers"], list)
+    assert isinstance(report["method_notes"], list)
+
+    for detector in ("iqr", "robust_zscore", "isolation_forest"):
+        result = report["detectors"][detector]
+        assert result["status"] in {"completed", "skipped"}
+        assert "flagged_row_numbers" in result
+        if detector in {"iqr", "robust_zscore"}:
+            assert result["columns"]
+            assert "flagged_count" in result["columns"][0]
+            assert "evidence" in result["columns"][0]
+        else:
+            assert "rows_scored" in result
+            assert "feature_columns" in result
+            assert "evidence" in result
