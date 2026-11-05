@@ -4,7 +4,7 @@
 
 DataSentry is a research-oriented full-stack application that profiles tabular datasets, detects quality issues using statistical, rule-based, and machine-learning techniques, recommends transparent cleaning actions, and evaluates how data defects affect downstream ML models.
 
-> **Status:** The FastAPI backend supports validated CSV ingestion, SQLite metadata persistence, dataset listing/detail, read-only statistical profiling, inferred quality assessment with an explainable Data Quality Score (DQS), and explicit caller-supplied schema/domain validation. The Next.js dashboard provides API status, dataset metrics, a dataset library, CSV upload, and an interactive quality report with DQS breakdown and issue evidence. Frontend lint, TypeScript, and production-build checks are enforced in GitHub Actions. Profile visualization, live browser upload verification, anomaly detection, cleaning, ML-readiness, and research modules remain in progress.
+> **Status:** The FastAPI backend supports validated CSV ingestion, SQLite metadata persistence, dataset listing/detail, read-only statistical profiling, inferred quality assessment with an explainable Data Quality Score (DQS), and explicit caller-supplied schema/domain validation. The Next.js dashboard provides API status, dataset metrics, a dataset library, CSV upload, an interactive quality report, and configurable numerical anomaly scans with detector evidence. Frontend lint, TypeScript, and production-build checks are enforced in GitHub Actions. Profile visualization, live browser upload verification, cleaning, ML-readiness, and controlled research evaluation remain in progress.
 
 ## Current capabilities
 
@@ -16,6 +16,9 @@ DataSentry is a research-oriented full-stack application that profiles tabular d
 - Explainable DQS with completeness (30%), validity (30%), uniqueness (20%), and consistency (20%); inapplicable components are excluded and active weights are renormalized.
 - Browser workspace with API status, dataset listing, CSV upload, upload feedback, and refresh.
 - Interactive quality report viewer with overall DQS, component numerators/denominators, severity counts, issue evidence, and detector notes.
+- Interactive numerical anomaly review with IQR, modified robust Z-score, and Isolation Forest selection; configurable thresholds, contamination, random seed, and tree count; numeric-column eligibility diagnostics; flagged-row evidence; and source fingerprint display.
+
+Anomaly review is available beside the quality check for each dataset. The dashboard sends detector selections and validated parameters to `POST /api/datasets/{id}/anomalies`, then displays per-detector flagged counts, row references, numeric eligibility, and method notes. The scan uses all eligible numeric-like columns; column-level filtering remains API-only. Anomaly findings are not included in DQS and never change source rows.
 
 Quality findings are evidence for review, not automatic corrections. The inferred validity detector is conservative; explicit business rules must be supplied rather than guessed. Schema validation is available through the API and is supplemental to the inference-based DQS in this version. Case and whitespace variants are review flags. The endpoint does not mutate or delete source data.
 
