@@ -10,10 +10,14 @@ import {
 } from "react";
 import {
   API_DOCS_URL,
+  getDatasetAnomalies,
   getDatasetQuality,
   getDatasets,
   getOverview,
   uploadDataset,
+  type AnomalyDetectionRequest,
+  type AnomalyDetectorName,
+  type AnomalyReport,
   type Dataset,
   type Overview,
   type QualityComponent,
@@ -287,6 +291,294 @@ function QualityReportPanel({
   );
 }
 
+
+type AnomalyParameterState = {
+  iqrMultiplier: string;
+  robustZThreshold: string;
+  contamination: string;
+  randomState: string;
+  nEstimators: string;
+};
+
+type AnomalyParameterKey = keyof AnomalyParameterState;
+
+function formatOptionalNumber(value: number | null | undefined): string {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value.toLocaleString(undefined, { maximumFractionDigits: 4 })
+    : "—";
+}
+
+function AnomalyReportPanel({
+  report,
+  dataset,
+  isLoading,
+  error,
+  selectedDetectors,
+  onToggleDetector,
+  parameters,
+  onParameterChange,
+  onRun,
+}: {
+  report: AnomalyReport | null;
+  dataset: Dataset | null;
+  isLoading: boolean;
+  error: string | null;
+  selectedDetectors: AnomalyDetectorName[];
+  onToggleDetector: (detector: AnomalyDetectorName) => void;
+  parameters: AnomalyParameterState;
+  onParameterChange: (key: AnomalyParameterKey, value: string) => void;
+  onRun: () => void;
+}) {
+  const parsed = {
+    iqrMultiplier: Number(parameters.iqrMultiplier),
+    robustZThreshold: Number(parameters.robustZThreshold),
+    contamination: Number(parameters.contamination),
+    randomState: Number(parameters.randomState),
+    nEstimators: Number(parameters.nEstimators),
+  };
+  const parametersValid =
+    Number.isFinite(parsed.iqrMultiplier) && parsed.iqrMultiplier > 0 && parsed.iqrMultiplier <= 10 &&
+    Number.isFinite(parsed.robustZThreshold) && parsed.robustZThreshold > 0 && parsed.robustZThreshold <= 20 &&
+    Number.isFinite(parsed.contamination) && parsed.contamination > 0 && parsed.contamination <= 0.5 &&
+    Number.isInteger(parsed.randomState) && parsed.randomState >= 0 && parsed.randomState <= 4294967295 &&
+    Number.isInteger(parsed.nEstimators) && parsed.nEstimators >= 50 && parsed.nEstimators <= 500;
+  const detectorLabels: Record<AnomalyDetectorName, string> = {
+    iqr: "IQR fences",
+    robust_zscore: "Modified robust Z-score",
+    isolation_forest: "Isolation Forest",
+  };
+
+  return (
+    <section id="anomaly-report" className="surface overflow-hidden rounded-2xl">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-800 px-5 py-5 sm:px-6">
+        <div>
+          <p className="eyebrow">Anomaly detection · review only</p>
+          <h2 className="mt-2 text-lg font-semibold text-white">Numerical anomaly review</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            {dataset ? dataset.filename + " · " + formatNumber(dataset.rows_count) + " rows" : "Select a dataset from the library to begin."}
+          </p>
+        </div>
+        <span className="rounded-full border border-amber-300/20 bg-amber-300/[0.06] px-3 py-1 text-xs text-amber-100">
+          No rows are changed or deleted
+        </span>
+      </div>
+
+      {!dataset ? (
+        <div className="px-5 py-10 text-center text-sm text-slate-400">
+          Choose “Run anomaly scan” beside a dataset to configure detectors and inspect flagged rows.
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-5 border-b border-slate-800 p-5 sm:p-6">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Detectors</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                {(Object.keys(detectorLabels) as AnomalyDetectorName[]).map((detector) => (
+                  <label key={detector} className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-800 bg-slate-950/35 p-3 text-sm text-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={selectedDetectors.includes(detector)}
+                      onChange={() => onToggleDetector(detector)}
+                      className="mt-0.5 accent-emerald-300"
+                    />
+                    <span>{detectorLabels[detector]}</span>
+                  </label>
+                ))}
+              </div>
+              {selectedDetectors.length === 0 && (
+                <p className="mt-2 text-xs text-rose-200" role="alert">Select at least one detector.</p>
+              )}
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Reproducible parameters</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                <label className="text-xs text-slate-400">
+                  IQR multiplier
+                  <input type="number" min="0.01" max="10" step="0.1" value={parameters.iqrMultiplier} onChange={(event) => onParameterChange("iqrMultiplier", event.currentTarget.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white" />
+                  <span className="mt-1 block text-[10px] text-slate-600">Greater than 0, up to 10</span>
+                </label>
+                <label className="text-xs text-slate-400">
+                  Robust Z threshold
+                  <input type="number" min="0.01" max="20" step="0.1" value={parameters.robustZThreshold} onChange={(event) => onParameterChange("robustZThreshold", event.currentTarget.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white" />
+                  <span className="mt-1 block text-[10px] text-slate-600">Greater than 0, up to 20</span>
+                </label>
+                <label className="text-xs text-slate-400">
+                  IF contamination
+                  <input type="number" min="0.001" max="0.5" step="0.01" value={parameters.contamination} onChange={(event) => onParameterChange("contamination", event.currentTarget.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white" />
+                  <span className="mt-1 block text-[10px] text-slate-600">Greater than 0, at most 0.5</span>
+                </label>
+                <label className="text-xs text-slate-400">
+                  Random seed
+                  <input type="number" min="0" max="4294967295" step="1" value={parameters.randomState} onChange={(event) => onParameterChange("randomState", event.currentTarget.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white" />
+                  <span className="mt-1 block text-[10px] text-slate-600">Integer from 0 to 2³²−1</span>
+                </label>
+                <label className="text-xs text-slate-400">
+                  Isolation Forest trees
+                  <input type="number" min="50" max="500" step="10" value={parameters.nEstimators} onChange={(event) => onParameterChange("nEstimators", event.currentTarget.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white" />
+                  <span className="mt-1 block text-[10px] text-slate-600">Integer from 50 to 500</span>
+                </label>
+              </div>
+              {!parametersValid && (
+                <p className="mt-3 text-xs text-rose-200" role="alert">Check the parameter ranges before running the scan.</p>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="max-w-2xl text-xs leading-5 text-slate-500">
+                All eligible numeric-like columns are scanned. Columns need at least four finite values and 80% finite numeric parseability. Isolation Forest additionally needs at least ten observed rows.
+              </p>
+              <button
+                type="button"
+                className="primary-button focus-ring whitespace-nowrap"
+                onClick={onRun}
+                disabled={isLoading || selectedDetectors.length === 0 || !parametersValid}
+              >
+                {isLoading ? "Scanning..." : report ? "Run scan again" : "Run anomaly scan"}
+              </button>
+            </div>
+          </div>
+
+          {isLoading ? (
+            <div className="p-6" aria-live="polite">
+              <p className="text-sm font-semibold text-white">Running selected detectors...</p>
+              <p className="mt-2 text-xs text-slate-500">The source CSV is read-only. Isolation Forest uses the configured random seed.</p>
+              <div className="mt-4 h-2 animate-pulse rounded-full bg-slate-700" />
+            </div>
+          ) : error ? (
+            <div className="p-6" aria-live="polite">
+              <p className="text-sm font-semibold text-rose-200">Anomaly scan could not be completed</p>
+              <p role="alert" className="mt-2 text-sm text-rose-100/80">{error}</p>
+            </div>
+          ) : !report ? (
+            <div className="p-6 text-sm text-slate-400">
+              Configure the detectors and run a scan. Results are review flags, not proof that a record is invalid.
+            </div>
+          ) : (
+            <div className="space-y-6 p-5 sm:p-6">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-amber-300/15 bg-amber-300/[0.045] p-4">
+                  <p className="text-xs text-slate-400">Unique rows flagged</p>
+                  <p className="mt-2 text-2xl font-semibold text-white">{formatNumber(report.summary.flagged_row_count)}</p>
+                </div>
+                <div className="rounded-xl border border-slate-800 bg-slate-950/35 p-4">
+                  <p className="text-xs text-slate-400">Numeric columns eligible</p>
+                  <p className="mt-2 text-2xl font-semibold text-white">{formatNumber(report.numeric_columns.filter((column) => column.eligible).length)} / {formatNumber(report.numeric_columns.length)}</p>
+                </div>
+                <div className="rounded-xl border border-slate-800 bg-slate-950/35 p-4">
+                  <p className="text-xs text-slate-400">Random seed</p>
+                  <p className="mt-2 text-2xl font-semibold text-white">{report.parameters.random_state}</p>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-white">Detector results</h3>
+                  <span className="text-[11px] text-slate-500">Generated {formatDate(report.generated_at)}</span>
+                </div>
+                <div className="mt-3 grid gap-3 xl:grid-cols-3">
+                  {selectedDetectors.map((detector) => {
+                    const result = report.detectors[detector];
+                    if (!result) return null;
+                    const flaggedCount = result.flagged_row_count ?? result.flagged_count ?? (result.columns ?? []).reduce((sum, column) => sum + column.flagged_count, 0);
+                    const rowNumbers = result.flagged_row_numbers ?? (result.columns ?? []).flatMap((column) => column.flagged_row_numbers);
+                    const evidence = result.evidence ?? (result.columns ?? []).flatMap((column) => column.evidence ?? []);
+                    return (
+                      <article key={detector} className="rounded-xl border border-slate-800 bg-slate-950/35 p-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <h4 className="text-sm font-semibold text-slate-100">{detectorLabels[detector]}</h4>
+                          <span className={"rounded-full px-2 py-1 text-[10px] font-semibold uppercase " + (result.status === "completed" ? "bg-emerald-300/10 text-emerald-100" : "bg-slate-700 text-slate-300")}>{result.status}</span>
+                        </div>
+                        <p className="mt-3 text-2xl font-semibold text-white">{formatNumber(flaggedCount)}</p>
+                        <p className="text-[10px] uppercase tracking-wider text-slate-500">Flagged rows</p>
+                        {result.reason && <p className="mt-3 text-xs leading-5 text-slate-400">{result.reason}</p>}
+                        {result.rows_scored !== undefined && <p className="mt-2 text-xs text-slate-500">Rows scored: {formatNumber(result.rows_scored)}</p>}
+                        {result.feature_columns && <p className="mt-2 break-words text-xs text-slate-500">Features: {result.feature_columns.join(", ") || "None"}</p>}
+                        {result.columns && result.columns.length > 0 && (
+                          <ul className="mt-3 space-y-2 border-t border-slate-800 pt-3">
+                            {result.columns.map((column) => (
+                              <li key={column.column} className="text-xs">
+                                <p className="font-medium text-slate-300">{column.column} · {formatNumber(column.flagged_count)} flagged</p>
+                                <p className="mt-1 leading-5 text-slate-500">
+                                  {column.reason ?? (column.lower_fence !== undefined
+                                    ? "Fences: " + formatOptionalNumber(column.lower_fence) + " to " + formatOptionalNumber(column.upper_fence)
+                                    : column.median !== undefined
+                                      ? "Median: " + formatOptionalNumber(column.median) + " · MAD: " + formatOptionalNumber(column.mad)
+                                      : column.status)}
+                                </p>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {rowNumbers.length > 0 && (
+                          <p className="mt-3 break-words text-[11px] leading-5 text-slate-500">
+                            Data rows: {rowNumbers.slice(0, 12).join(", ")}{rowNumbers.length > 12 ? ", …" : ""}
+                          </p>
+                        )}
+                        {evidence.length > 0 && (
+                          <details className="mt-3 border-t border-slate-800 pt-3">
+                            <summary className="cursor-pointer text-[11px] font-semibold text-slate-400">Inspect evidence ({evidence.length})</summary>
+                            <ul className="mt-2 space-y-1 text-[10px] text-slate-500">
+                              {evidence.slice(0, 20).map((item) => (
+                                <li key={item.row_number}>
+                                  Row {item.row_number}
+                                  {item.value !== undefined && " · value " + formatOptionalNumber(item.value)}
+                                  {item.modified_z_score !== undefined && " · |modified Z| " + formatOptionalNumber(item.modified_z_score)}
+                                  {item.anomaly_score !== undefined && " · anomaly score " + formatOptionalNumber(item.anomaly_score)}
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold text-white">Numeric-column eligibility</h3>
+                <div className="mt-3 overflow-x-auto rounded-xl border border-slate-800">
+                  <table className="w-full min-w-[560px] text-left text-xs">
+                    <thead className="bg-white/[0.025] text-[10px] uppercase tracking-wider text-slate-500">
+                      <tr>
+                        <th className="px-3 py-3">Column</th>
+                        <th className="px-3 py-3">Eligible</th>
+                        <th className="px-3 py-3">Finite parseability</th>
+                        <th className="px-3 py-3">Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {report.numeric_columns.map((column) => (
+                        <tr key={column.column} className="border-t border-slate-800">
+                          <td className="px-3 py-3 font-mono text-slate-300">{column.column}</td>
+                          <td className="px-3 py-3 text-slate-300">{column.eligible ? "Yes" : "No"}</td>
+                          <td className="px-3 py-3 tabular-nums text-slate-400">{column.finite_parseability_pct.toFixed(2)}%</td>
+                          <td className="px-3 py-3 text-slate-500">{column.reason ?? "Meets numeric eligibility rules"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-800 pt-4">
+                <p className="text-[10px] text-slate-600">Source SHA-256: {report.source_sha256 ?? "Unavailable"}</p>
+                <details className="mt-3">
+                  <summary className="cursor-pointer text-xs font-semibold text-slate-400 hover:text-slate-200">Detector methodology and limitations</summary>
+                  <ul className="mt-3 list-disc space-y-2 pl-5 text-xs leading-5 text-slate-500">
+                    {report.method_notes.map((note) => <li key={note}>{note}</li>)}
+                  </ul>
+                </details>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
 export default function Home() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [datasets, setDatasets] = useState<Dataset[]>([]);
@@ -294,6 +586,21 @@ export default function Home() {
   const [qualityReport, setQualityReport] = useState<QualityReport | null>(null);
   const [qualityError, setQualityError] = useState<string | null>(null);
   const [isLoadingQuality, setIsLoadingQuality] = useState(false);
+  const [anomalyReport, setAnomalyReport] = useState<AnomalyReport | null>(null);
+  const [anomalyError, setAnomalyError] = useState<string | null>(null);
+  const [isLoadingAnomalies, setIsLoadingAnomalies] = useState(false);
+  const [selectedDetectors, setSelectedDetectors] = useState<AnomalyDetectorName[]>([
+    "iqr",
+    "robust_zscore",
+    "isolation_forest",
+  ]);
+  const [anomalyParameters, setAnomalyParameters] = useState<AnomalyParameterState>({
+    iqrMultiplier: "1.5",
+    robustZThreshold: "3.5",
+    contamination: "0.05",
+    randomState: "42",
+    nEstimators: "100",
+  });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -381,6 +688,8 @@ export default function Home() {
     setSelectedDatasetId(dataset.id);
     setQualityReport(null);
     setQualityError(null);
+    setAnomalyReport(null);
+    setAnomalyError(null);
     setIsLoadingQuality(true);
 
     try {
@@ -392,6 +701,48 @@ export default function Home() {
       );
     } finally {
       setIsLoadingQuality(false);
+    }
+  }
+
+  function toggleAnomalyDetector(detector: AnomalyDetectorName) {
+    setSelectedDetectors((current) =>
+      current.includes(detector)
+        ? current.filter((item) => item !== detector)
+        : [...current, detector],
+    );
+  }
+
+  function updateAnomalyParameter(key: AnomalyParameterKey, value: string) {
+    setAnomalyParameters((current) => ({ ...current, [key]: value }));
+  }
+
+  async function runAnomalyAssessment(dataset: Dataset) {
+    setSelectedDatasetId(dataset.id);
+    setQualityReport(null);
+    setQualityError(null);
+    setAnomalyReport(null);
+    setAnomalyError(null);
+    setIsLoadingAnomalies(true);
+
+    const request: AnomalyDetectionRequest = {
+      detectors: selectedDetectors,
+      iqr_multiplier: Number(anomalyParameters.iqrMultiplier),
+      robust_z_threshold: Number(anomalyParameters.robustZThreshold),
+      contamination: Number(anomalyParameters.contamination),
+      random_state: Number(anomalyParameters.randomState),
+      n_estimators: Number(anomalyParameters.nEstimators),
+      max_evidence_rows: 20,
+    };
+
+    try {
+      const report = await getDatasetAnomalies(dataset.id, request);
+      setAnomalyReport(report);
+    } catch (error) {
+      setAnomalyError(
+        error instanceof Error ? error.message : "Could not run anomaly detection.",
+      );
+    } finally {
+      setIsLoadingAnomalies(false);
     }
   }
 
@@ -443,6 +794,7 @@ export default function Home() {
     }
   }
 
+  const selectedDataset = datasets.find((dataset) => dataset.id === selectedDatasetId) ?? null;
   const totalRows = datasets.reduce((sum, dataset) => sum + dataset.rows_count, 0);
   const connectionState = overview ? "online" : apiError ? "offline" : "checking";
 
@@ -655,19 +1007,34 @@ export default function Home() {
                           {formatDate(dataset.created_at)}
                         </td>
                         <td className="px-4 py-4">
-                          <button
-                            type="button"
-                            className="secondary-button focus-ring whitespace-nowrap text-[11px]"
-                            onClick={() => void runQualityAssessment(dataset)}
-                            disabled={isLoadingQuality}
-                            aria-label={"Run quality check for " + dataset.filename}
-                          >
-                            {isLoadingQuality && selectedDatasetId === dataset.id
-                              ? "Analyzing..."
-                              : selectedDatasetId === dataset.id && qualityReport
-                                ? "Report open"
-                                : "Run quality check"}
-                          </button>
+                          <div className="flex flex-col items-start gap-2">
+                            <button
+                              type="button"
+                              className="secondary-button focus-ring whitespace-nowrap text-[11px]"
+                              onClick={() => void runQualityAssessment(dataset)}
+                              disabled={isLoadingQuality || isLoadingAnomalies}
+                              aria-label={"Run quality check for " + dataset.filename}
+                            >
+                              {isLoadingQuality && selectedDatasetId === dataset.id
+                                ? "Analyzing..."
+                                : selectedDatasetId === dataset.id && qualityReport
+                                  ? "Report open"
+                                  : "Run quality check"}
+                            </button>
+                            <button
+                              type="button"
+                              className="secondary-button focus-ring whitespace-nowrap text-[11px]"
+                              onClick={() => void runAnomalyAssessment(dataset)}
+                              disabled={isLoadingAnomalies || isLoadingQuality || selectedDetectors.length === 0}
+                              aria-label={"Run anomaly scan for " + dataset.filename}
+                            >
+                              {isLoadingAnomalies && selectedDatasetId === dataset.id
+                                ? "Scanning..."
+                                : selectedDatasetId === dataset.id && anomalyReport
+                                  ? "Anomaly report open"
+                                  : "Run anomaly scan"}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -762,6 +1129,20 @@ export default function Home() {
             report={qualityReport}
             isLoading={isLoadingQuality}
             error={qualityError}
+          />
+        </div>
+
+        <div className="mt-6">
+          <AnomalyReportPanel
+            report={anomalyReport}
+            dataset={selectedDataset}
+            isLoading={isLoadingAnomalies}
+            error={anomalyError}
+            selectedDetectors={selectedDetectors}
+            onToggleDetector={toggleAnomalyDetector}
+            parameters={anomalyParameters}
+            onParameterChange={updateAnomalyParameter}
+            onRun={() => selectedDataset && void runAnomalyAssessment(selectedDataset)}
           />
         </div>
 

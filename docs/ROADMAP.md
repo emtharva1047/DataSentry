@@ -29,9 +29,13 @@ The dashboard quality report viewer displays inferred DQS results. Configurable 
 The profile endpoint also computes on demand and does not persist profile snapshots. Numeric histograms use 10 bins; Pearson correlation is limited to the first 20 numeric columns to bound response size. Anomaly flags are intentionally not part of the quality score.
 
 ## Week 3 — Anomaly, cleaning, and ML readiness (Days 15–21)
-- [ ] IQR, robust Z-score, and Isolation Forest with reproducible parameters.
+- [x] IQR, modified robust Z-score, and seeded Isolation Forest API with reproducible parameters.
+- [x] Dashboard detector selection, parameter controls, numeric eligibility diagnostics, flagged-row evidence, and source fingerprint display.
+- [ ] Controlled ground-truth detector evaluation and comparison metrics.
 - [ ] Cleaning preview, explicit apply, and immutable dataset versions.
 - [ ] ML-readiness checks and leakage-safe baseline models.
+
+The anomaly dashboard calls `POST /api/datasets/{id}/anomalies` for the selected dataset. Users can select one or more detectors and set the IQR multiplier, modified-Z threshold, Isolation Forest contamination, random seed, and estimator count. The current dashboard scans all eligible numeric-like columns and displays per-detector counts, bounded row evidence, eligibility reasons, and method notes. API-only column filtering is not exposed in the UI. Results are review flags; the uploaded CSV and DQS remain unchanged. Controlled synthetic-corruption evaluation is still required before M6 can be closed.
 
 ## Week 4 — Research evaluation and delivery (Days 22–30)
 - [ ] Seeded synthetic corruption and ground-truth defect labels.

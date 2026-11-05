@@ -40,4 +40,4 @@ For a different backend URL, edit `NEXT_PUBLIC_API_BASE_URL` in `.env.local` and
 - `npm run typecheck` — TypeScript checks
 - `npm run build` — production build
 
-The dashboard currently implements API connection status, dataset counts, dataset listing, and validated CSV upload. Profiling and quality-scoring views will be added in later milestones.
+The dashboard implements API connection status, dataset counts, dataset listing, validated CSV upload, an interactive DQS report, and numerical anomaly review. For each dataset, run a quality check or anomaly scan. The anomaly panel supports IQR, modified robust Z-score, and Isolation Forest with configurable parameters, bounded row evidence, numeric-column eligibility diagnostics, and reproducibility details. Start the FastAPI backend locally before using the dashboard.

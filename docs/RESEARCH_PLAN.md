@@ -36,7 +36,7 @@ Test example corruption proportions of 1%, 5%, and 10% where meaningful. These a
 - Modified robust Z-score flags use 0.67448975*(x - median)/MAD (default absolute threshold 3.5); zero-MAD columns are skipped and reported.
 - Isolation Forest uses a caller-supplied contamination and random seed, median imputation, robust feature scaling, bounded per-tree samples, and a single worker. It requires at least ten rows with observed numeric values.
 - Numeric candidates require at least four finite values and at least 80% finite parseability among non-missing values. These are implementation eligibility rules to evaluate, not universal data-quality standards.
-- The current anomaly API returns bounded one-based row evidence and the source SHA-256 fingerprint. It is read-only; anomaly flags are not incorporated into DQS and never delete records. Dashboard integration and ground-truth detector evaluation remain outstanding.
+- The current anomaly API returns bounded one-based row evidence and the source SHA-256 fingerprint. The dashboard now exposes detector selection, reproducible parameter controls, numeric eligibility diagnostics, per-detector findings, and evidence inspection. The UI currently scans all eligible numeric-like columns; API-level column filtering is not exposed. The workflow is read-only; anomaly flags are not incorporated into DQS and never delete records. Ground-truth detector evaluation remains outstanding.
 
 Do not treat every unusual observation as a confirmed error. Compare only detectors applicable to each injected defect type. The current numeric type check does not infer business-specific minimum/maximum constraints.
 

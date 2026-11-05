@@ -61,6 +61,90 @@ export type QualityReport = {
   method_notes: string[];
 };
 
+
+export type AnomalyDetectorName = "iqr" | "robust_zscore" | "isolation_forest";
+
+export type AnomalyDetectionRequest = {
+  detectors: AnomalyDetectorName[];
+  iqr_multiplier: number;
+  robust_z_threshold: number;
+  contamination: number;
+  random_state: number;
+  n_estimators: number;
+  max_evidence_rows: number;
+};
+
+export type AnomalyNumericColumn = {
+  column: string;
+  eligible: boolean;
+  valid_count: number;
+  non_missing_count: number;
+  parse_failure_count: number;
+  finite_parseability_pct: number;
+  reason: string | null;
+};
+
+export type AnomalyEvidence = {
+  row_number: number;
+  value?: number | null;
+  distance_beyond_fence?: number | null;
+  modified_z_score?: number | null;
+  anomaly_score?: number | null;
+};
+
+export type AnomalyColumnResult = {
+  column: string;
+  status: "completed" | "skipped";
+  reason?: string;
+  valid_count?: number;
+  q1?: number | null;
+  q3?: number | null;
+  iqr?: number | null;
+  lower_fence?: number | null;
+  upper_fence?: number | null;
+  median?: number | null;
+  mad?: number | null;
+  flagged_count: number;
+  flagged_row_numbers: number[];
+  flagged_row_numbers_truncated?: boolean;
+  evidence?: AnomalyEvidence[];
+  evidence_truncated?: boolean;
+};
+
+export type AnomalyDetectorResult = {
+  status: "completed" | "skipped";
+  reason?: string;
+  parameters?: Record<string, number | string | null>;
+  columns?: AnomalyColumnResult[];
+  flagged_row_count?: number;
+  flagged_count?: number;
+  flagged_row_numbers?: number[];
+  flagged_row_numbers_truncated?: boolean;
+  feature_columns?: string[];
+  rows_scored?: number;
+  evidence?: AnomalyEvidence[];
+  evidence_truncated?: boolean;
+};
+
+export type AnomalyReport = {
+  dataset_id: number;
+  filename: string;
+  anomaly_detection_version: number;
+  generated_at: string;
+  source_sha256: string | null;
+  shape: { rows: number; columns: number };
+  numeric_columns: AnomalyNumericColumn[];
+  parameters: AnomalyDetectionRequest;
+  detectors: Partial<Record<AnomalyDetectorName, AnomalyDetectorResult>>;
+  summary: {
+    flagged_row_count: number;
+    flagged_row_numbers: number[];
+    evidence_truncated: boolean;
+    flagged_count_by_detector: Partial<Record<AnomalyDetectorName, number>>;
+  };
+  method_notes: string[];
+};
+
 const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000"
 ).replace(/\/+$/, "");
@@ -105,6 +189,19 @@ export async function getDatasetQuality(datasetId: number): Promise<QualityRepor
     cache: "no-store",
   });
   return readResponse<QualityReport>(response);
+}
+
+export async function getDatasetAnomalies(
+  datasetId: number,
+  request: AnomalyDetectionRequest,
+): Promise<AnomalyReport> {
+  const response = await fetch(`${API_BASE_URL}/api/datasets/${datasetId}/anomalies`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+    cache: "no-store",
+  });
+  return readResponse<AnomalyReport>(response);
 }
 
 export async function uploadDataset(file: File): Promise<Dataset> {
