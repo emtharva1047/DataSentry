@@ -1,14 +1,25 @@
 """FastAPI application entry point for DataSentry."""
 from contextlib import asynccontextmanager
+
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .database import get_db, initialize_database
-from .models import Dataset  # noqa: F401
-from .schemas import AnomalyDetectionRequest, DatasetRead, DatasetSchemaValidationRequest
-from .services.dataset_ingestion import DatasetTooLargeError, DatasetValidationError, MAX_UPLOAD_BYTES, create_dataset
+from .models import Dataset, DatasetVersion  # noqa: F401
+from .schemas import (
+    AnomalyDetectionRequest,
+    CleaningRequest,
+    DatasetRead,
+    DatasetSchemaValidationRequest,
+)
+from .services.dataset_ingestion import (
+    DatasetTooLargeError,
+    DatasetValidationError,
+    MAX_UPLOAD_BYTES,
+    create_dataset,
+)
 from .services.dataset_profiling import DatasetFileUnavailableError, profile_dataset
 from .services.dataset_quality import DatasetQualityFileUnavailableError, assess_dataset_quality
 from .services.dataset_schema_validation import validate_dataset_schema
@@ -16,6 +27,15 @@ from .services.dataset_anomaly import (
     DatasetAnomalyFileUnavailableError,
     DatasetAnomalyRequestError,
     detect_dataset_anomalies,
+)
+from .services.dataset_cleaning import (
+    DatasetCleaningFileUnavailableError,
+    DatasetCleaningNoChangesError,
+    DatasetCleaningRequestError,
+    apply_cleaning,
+    get_cleaning_recommendations,
+    list_dataset_versions,
+    preview_cleaning,
 )
 
 
@@ -29,7 +49,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(
     title="DataSentry API",
     description="Dataset quality assessment and ML-readiness research prototype.",
-    version="0.3.0",
+    version="0.4.0",
     lifespan=lifespan,
 )
 app.add_middleware(
@@ -143,6 +163,76 @@ def post_dataset_anomalies(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except DatasetAnomalyFileUnavailableError as exc:
         raise HTTPException(status_code=410, detail=str(exc)) from exc
+
+
+@app.get("/api/datasets/{dataset_id}/cleaning/recommendations", tags=["cleaning"])
+def get_dataset_cleaning_recommendations(
+    dataset_id: int,
+    base_version_id: int | None = None,
+    db: Session = Depends(get_db),
+) -> dict:
+    """Return advisory cleaning recommendations without changing source data."""
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(status_code=404, detail="Dataset not found.")
+    try:
+        return get_cleaning_recommendations(dataset, db, base_version_id)
+    except DatasetCleaningRequestError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except DatasetCleaningFileUnavailableError as exc:
+        raise HTTPException(status_code=410, detail=str(exc)) from exc
+
+
+@app.post("/api/datasets/{dataset_id}/cleaning/preview", tags=["cleaning"])
+def post_dataset_cleaning_preview(
+    dataset_id: int,
+    request: CleaningRequest,
+    db: Session = Depends(get_db),
+) -> dict:
+    """Preview explicitly selected cleaning operations without persisting changes."""
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(status_code=404, detail="Dataset not found.")
+    try:
+        return preview_cleaning(dataset, request.model_dump(), db)
+    except DatasetCleaningRequestError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except DatasetCleaningFileUnavailableError as exc:
+        raise HTTPException(status_code=410, detail=str(exc)) from exc
+
+
+@app.post(
+    "/api/datasets/{dataset_id}/cleaning/apply",
+    status_code=status.HTTP_201_CREATED,
+    tags=["cleaning"],
+)
+def post_dataset_cleaning_apply(
+    dataset_id: int,
+    request: CleaningRequest,
+    db: Session = Depends(get_db),
+) -> dict:
+    """Apply only the requested operations and create a new immutable dataset version."""
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(status_code=404, detail="Dataset not found.")
+    try:
+        return apply_cleaning(dataset, request.model_dump(), db)
+    except DatasetCleaningRequestError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except DatasetCleaningNoChangesError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except DatasetCleaningFileUnavailableError as exc:
+        raise HTTPException(status_code=410, detail=str(exc)) from exc
+
+
+@app.get("/api/datasets/{dataset_id}/cleaning/versions", tags=["cleaning"])
+def get_dataset_cleaning_versions(
+    dataset_id: int, db: Session = Depends(get_db)
+) -> list[dict]:
+    """List immutable versions created from one uploaded dataset."""
+    if db.get(Dataset, dataset_id) is None:
+        raise HTTPException(status_code=404, detail="Dataset not found.")
+    return list_dataset_versions(dataset_id, db)
 
 
 @app.get("/api/datasets/{dataset_id}", response_model=DatasetRead, tags=["datasets"])

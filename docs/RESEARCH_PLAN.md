@@ -54,6 +54,12 @@ Severity bands for rule findings are high at >=20% affected, medium at >=5% and 
 
 The current anomaly endpoint is `POST /api/datasets/{id}/anomalies`. Record detector selection, IQR multiplier, modified-Z threshold, contamination, estimator count, random seed, numeric-column eligibility, and software versions for every evaluation run. Isolation Forest scores are anomaly rankings, not calibrated probabilities. Compare only detector/defect pairs for which the method is applicable.
 
+## Cleaning and version provenance
+
+The backend exposes advisory recommendations, a read-only preview, explicit apply, and version listing. Supported operations are exact duplicate removal (keep first), numeric median imputation, categorical mode imputation, whitespace trimming, and explicitly requested lower-case normalization. Recommendations never execute automatically. Preview returns bounded one-based row evidence and does not write a file. Apply creates a new generated CSV and immutable version record; the original upload and prior versions remain unchanged. Each version records its parent, operation manifest, row/column counts, file size, and SHA-256. A version may be used as the base for a subsequent version, preserving lineage.
+
+Imputation is not universally safe: median can compress numeric variance, mode can overrepresent a category, and lower-case normalization can merge semantically distinct labels. These choices require review and must be described in experiment reports. A no-op operation is not persisted. The current cleaning API is backend-only; browser controls and a visual before/after comparison remain pending.
+
 ## Evaluation metrics
 
 For defect detection: precision, recall, F1, confusion counts, and execution time. Record memory where feasible. For classification: F1 and appropriate complementary metrics. For regression: MAE and RMSE. Repeat stochastic experiments across seeds and report mean and standard deviation.
