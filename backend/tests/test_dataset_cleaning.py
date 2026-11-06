@@ -180,9 +180,17 @@ def test_rejects_unknown_column_and_foreign_base_version(client):
     )
     assert unknown.status_code == 422
     other, _ = upload(test_client)
+    other_version = test_client.post(
+        f"/api/datasets/{other['id']}/cleaning/apply",
+        json={"trim_whitespace": ["city"]},
+    )
+    assert other_version.status_code == 201
     foreign_version = test_client.post(
         f"/api/datasets/{dataset['id']}/cleaning/preview",
-        json={"base_version_id": 999, "trim_whitespace": ["city"]},
+        json={
+            "base_version_id": other_version.json()["version"]["id"],
+            "trim_whitespace": ["city"],
+        },
     )
     assert foreign_version.status_code == 422
     assert other["id"] != dataset["id"]
