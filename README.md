@@ -37,6 +37,10 @@ Quality findings are evidence for review, not automatic corrections. The inferre
 - `GET /api/datasets/{id}/quality` — generate inferred rule-based issue evidence and an explainable DQS on demand.
 - `POST /api/datasets/{id}/quality/validate` — validate against a caller-supplied schema/domain contract.
 - `POST /api/datasets/{id}/anomalies` — run selected read-only numerical anomaly detectors with reproducible parameters.
+- `GET /api/datasets/{id}/cleaning/recommendations` — return advisory, non-executing cleaning suggestions.
+- `POST /api/datasets/{id}/cleaning/preview` — preview explicitly selected operations without writing a version.
+- `POST /api/datasets/{id}/cleaning/apply` — apply selected operations into a new immutable version.
+- `GET /api/datasets/{id}/cleaning/versions` — list derived versions and their parent lineage.
 - `GET /api/health` and `GET /api/overview` — service and database status.
 
 ### Explicit schema validation
@@ -83,6 +87,27 @@ The nominal weights are 30%, 30%, 20%, and 20%. If a component has no assessable
 Severity is high at an affected rate of at least 20%, medium at 5% to below 20%, and low below 5%. Exact duplicate detection counts repeated occurrences after the first. Missing-value behavior follows pandas CSV parsing defaults. The numeric type check is not a substitute for business-domain validation; no arbitrary value ranges are inferred. Anomaly flags are separate from DQS.
 
 Initial backend upload limits: 10 MiB, 100,000 data rows, and 200 columns. Uploaded files use generated UUID storage names; originals are not modified. Profiles and quality reports are computed on request and are not persisted as separate records.
+
+## Safe cleaning and immutable versions
+
+Cleaning is explicit and versioned. The recommendation endpoint never changes data. A preview is read-only and returns bounded before/after row evidence. Only a separate apply request writes a new generated CSV under the backend version directory and records an immutable version in SQLite. The original upload and earlier versions are retained.
+
+Example preview or apply request:
+
+```json
+{
+  "base_version_id": null,
+  "drop_exact_duplicates": true,
+  "fill_numeric_median": ["amount"],
+  "fill_categorical_mode": ["city"],
+  "trim_whitespace": ["city"],
+  "lowercase_categories": []
+}
+```
+
+Supported operations are exact duplicate removal (first occurrence retained), median imputation for finite numeric columns, mode imputation for categorical columns, whitespace trimming, and explicitly requested lower-case normalization. Numeric imputation rejects columns containing non-numeric or non-finite observed values. Mode ties use the first value returned by pandas mode ordering. Lower-case normalization is marked high risk because case can be semantically meaningful.
+
+Use base_version_id to branch from a prior immutable version; omit it or set it to null to start from the original upload. Each successful apply receives a monotonically increasing per-dataset version number and records its parent, operation manifest, row/column counts, file size, and SHA-256. Storage paths are never returned. A valid operation that produces no changes returns HTTP 409 and creates no version. Preview evidence is capped at ten changed rows and ten cells per row. These operations are deterministic for a fixed input and request, but imputation choices are statistical assumptions and must be reviewed before applying.
 
 ## Local setup
 

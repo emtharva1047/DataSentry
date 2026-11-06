@@ -26,3 +26,6 @@ frontend/.env.local
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Immutable cleaned dataset versions (runtime data)
+backend/versions/

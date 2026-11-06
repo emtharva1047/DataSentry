@@ -95,3 +95,33 @@ class AnomalyDetectionRequest(BaseModel):
         if len(value) != len(set(value)):
             raise ValueError("columns must not contain duplicates")
         return value
+
+
+class CleaningRequest(BaseModel):
+    """Explicit operations to preview or apply to a source or prior version."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    base_version_id: int | None = Field(default=None, ge=1)
+    drop_exact_duplicates: bool = False
+    fill_numeric_median: list[str] = Field(default_factory=list, max_length=200)
+    fill_categorical_mode: list[str] = Field(default_factory=list, max_length=200)
+    trim_whitespace: list[str] = Field(default_factory=list, max_length=200)
+    lowercase_categories: list[str] = Field(default_factory=list, max_length=200)
+
+    @model_validator(mode="after")
+    def validate_operations(self) -> "CleaningRequest":
+        operations = (
+            self.fill_numeric_median,
+            self.fill_categorical_mode,
+            self.trim_whitespace,
+            self.lowercase_categories,
+        )
+        for columns in operations:
+            if len(columns) != len(set(columns)):
+                raise ValueError("a column may appear only once within an operation")
+            if any(not name.strip() or len(name) > 255 for name in columns):
+                raise ValueError("column names must be non-empty and at most 255 characters")
+        if not self.drop_exact_duplicates and not any(operations):
+            raise ValueError("select at least one explicit cleaning operation")
+        return self
