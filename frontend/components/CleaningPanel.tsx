@@ -48,25 +48,16 @@ export default function CleaningPanel({ dataset }: { dataset: Dataset | null }) 
   const [preview, setPreview] = useState<CleaningPreview | null>(null);
   const [applied, setApplied] = useState<CleaningApplyResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
-  const [isLoadingVersions, setIsLoadingVersions] = useState(false);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(true);
+  const [isLoadingVersions, setIsLoadingVersions] = useState(true);
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   const [previewReviewed, setPreviewReviewed] = useState(false);
 
   useEffect(() => {
-    if (!dataset) {
-      setRecommendations([]);
-      setVersions([]);
-      setPreview(null);
-      setApplied(null);
-      setSelectedKeys([]);
-      setBaseVersionId(null);
-      return;
-    }
+    if (!dataset) return;
 
     let active = true;
-    setIsLoadingVersions(true);
     void getDatasetVersions(dataset.id)
       .then((items) => {
         if (active) setVersions(items);
@@ -88,11 +79,6 @@ export default function CleaningPanel({ dataset }: { dataset: Dataset | null }) 
   useEffect(() => {
     if (!dataset) return;
     let active = true;
-    setIsLoadingRecommendations(true);
-    setError(null);
-    setPreview(null);
-    setApplied(null);
-    setPreviewReviewed(false);
 
     void getCleaningRecommendations(dataset.id, baseVersionId)
       .then((result) => {
@@ -144,6 +130,15 @@ export default function CleaningPanel({ dataset }: { dataset: Dataset | null }) 
       .map((item) => item.column as string),
   }), [baseVersionId, selectedRecommendations]);
 
+  function changeBaseVersion(nextVersionId: number | null) {
+    setIsLoadingRecommendations(true);
+    setBaseVersionId(nextVersionId);
+    setPreview(null);
+    setPreviewReviewed(false);
+    setApplied(null);
+    setError(null);
+  }
+
   function toggleRecommendation(item: CleaningRecommendation) {
     const key = recommendationKey(item);
     setSelectedKeys((current) =>
@@ -182,6 +177,7 @@ export default function CleaningPanel({ dataset }: { dataset: Dataset | null }) 
       setPreviewReviewed(false);
       const updatedVersions = await getDatasetVersions(dataset.id);
       setVersions(updatedVersions);
+      setIsLoadingRecommendations(true);
       setBaseVersionId(result.version.id);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "The cleaned version could not be created.");
@@ -222,10 +218,7 @@ export default function CleaningPanel({ dataset }: { dataset: Dataset | null }) 
                   value={baseVersionId === null ? "original" : String(baseVersionId)}
                   onChange={(event) => {
                     const value = event.currentTarget.value;
-                    setBaseVersionId(value === "original" ? null : Number(value));
-                    setPreview(null);
-                    setPreviewReviewed(false);
-                    setApplied(null);
+                    changeBaseVersion(value === "original" ? null : Number(value));
                   }}
                   disabled={isApplying || isPreviewing}
                   className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-200"
@@ -478,10 +471,7 @@ export default function CleaningPanel({ dataset }: { dataset: Dataset | null }) 
                       type="button"
                       className="secondary-button focus-ring text-xs"
                       onClick={() => {
-                        setBaseVersionId(version.id);
-                        setPreview(null);
-                        setPreviewReviewed(false);
-                        setApplied(null);
+                        changeBaseVersion(version.id);
                       }}
                       disabled={isApplying || isPreviewing || version.id === baseVersionId}
                     >
