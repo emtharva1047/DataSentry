@@ -204,6 +204,172 @@ export async function getDatasetAnomalies(
   return readResponse<AnomalyReport>(response);
 }
 
+
+
+export type CleaningOperationName =
+  | "drop_exact_duplicates"
+  | "fill_numeric_median"
+  | "fill_categorical_mode"
+  | "trim_whitespace"
+  | "lowercase_categories";
+
+export type CleaningRecommendation = {
+  operation: CleaningOperationName;
+  column?: string;
+  recommended: boolean;
+  affected_count: number;
+  risk: "low" | "medium" | "high";
+  reason: string;
+};
+
+export type CleaningRequest = {
+  base_version_id: number | null;
+  drop_exact_duplicates: boolean;
+  fill_numeric_median: string[];
+  fill_categorical_mode: string[];
+  trim_whitespace: string[];
+  lowercase_categories: string[];
+};
+
+export type CleaningOperationSummary = {
+  operation: CleaningOperationName;
+  columns?: string[];
+  affected_cells?: number;
+  affected_rows?: number;
+  imputation_value?: string;
+  review_required?: boolean;
+  comparison?: string;
+};
+
+export type CleaningPreviewChange = {
+  column: string;
+  before: string | null;
+  after: string | null;
+  operations: string[];
+};
+
+export type CleaningPreviewRow = {
+  row_number: number;
+  removed: boolean;
+  changes: CleaningPreviewChange[];
+};
+
+export type CleaningPreview = {
+  dataset_id: number;
+  filename: string;
+  base_version_id: number | null;
+  source_sha256: string | null;
+  previewed_at: string;
+  changed: boolean;
+  rows_before: number;
+  rows_after: number;
+  columns: number;
+  preview: {
+    changed_row_count: number;
+    removed_row_count: number;
+    sample_rows: CleaningPreviewRow[];
+    sample_truncated: boolean;
+    operations: CleaningOperationSummary[];
+  };
+  method_notes: string[];
+};
+
+export type DatasetVersion = {
+  id: number;
+  dataset_id: number;
+  parent_version_id: number | null;
+  version_number: number;
+  filename: string;
+  rows_count: number;
+  columns_count: number;
+  file_size_bytes: number;
+  sha256_hash: string;
+  operations: Record<string, unknown>;
+  created_at: string | null;
+};
+
+export type CleaningApplyResult = {
+  dataset_id: number;
+  filename: string;
+  version: {
+    id: number;
+    version_number: number;
+    parent_version_id: number | null;
+    rows_count: number;
+    columns_count: number;
+    file_size_bytes: number;
+    sha256_hash: string;
+    created_at: string | null;
+  };
+  base_sha256: string | null;
+  preview: CleaningPreview["preview"];
+  source_preserved: boolean;
+  method_notes: string[];
+};
+
+export type CleaningRecommendations = {
+  dataset_id: number;
+  filename: string;
+  base_version_id: number | null;
+  source_sha256: string | null;
+  shape: { rows: number; columns: number };
+  recommendation_count: number;
+  recommendations: CleaningRecommendation[];
+  method_notes: string[];
+};
+
+export async function getCleaningRecommendations(
+  datasetId: number,
+  baseVersionId: number | null,
+): Promise<CleaningRecommendations> {
+  const query = baseVersionId === null ? "" : "?base_version_id=" + baseVersionId;
+  const response = await fetch(
+    API_BASE_URL + "/api/datasets/" + datasetId + "/cleaning/recommendations" + query,
+    { cache: "no-store" },
+  );
+  return readResponse<CleaningRecommendations>(response);
+}
+
+export async function getDatasetVersions(datasetId: number): Promise<DatasetVersion[]> {
+  const response = await fetch(
+    API_BASE_URL + "/api/datasets/" + datasetId + "/cleaning/versions",
+    { cache: "no-store" },
+  );
+  return readResponse<DatasetVersion[]>(response);
+}
+
+export async function previewDatasetCleaning(
+  datasetId: number,
+  request: CleaningRequest,
+): Promise<CleaningPreview> {
+  const response = await fetch(
+    API_BASE_URL + "/api/datasets/" + datasetId + "/cleaning/preview",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+      cache: "no-store",
+    },
+  );
+  return readResponse<CleaningPreview>(response);
+}
+
+export async function applyDatasetCleaning(
+  datasetId: number,
+  request: CleaningRequest,
+): Promise<CleaningApplyResult> {
+  const response = await fetch(
+    API_BASE_URL + "/api/datasets/" + datasetId + "/cleaning/apply",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+      cache: "no-store",
+    },
+  );
+  return readResponse<CleaningApplyResult>(response);
+}
+
 export async function uploadDataset(file: File): Promise<Dataset> {
   const formData = new FormData();
   formData.append("file", file);

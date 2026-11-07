@@ -17,6 +17,7 @@ DataSentry is a research-oriented full-stack application that profiles tabular d
 - Browser workspace with API status, dataset listing, CSV upload, upload feedback, and refresh.
 - Interactive quality report viewer with overall DQS, component numerators/denominators, severity counts, issue evidence, and detector notes.
 - Interactive numerical anomaly review with IQR, modified robust Z-score, and Isolation Forest selection; configurable thresholds, contamination, random seed, and tree count; numeric-column eligibility diagnostics; flagged-row evidence; and source fingerprint display.
+- Interactive safe-cleaning workflow with advisory recommendations, explicit operation selection, read-only before/after row previews, a review acknowledgement before apply, and immutable version history.
 
 Anomaly review is available beside the quality check for each dataset. The dashboard sends detector selections and validated parameters to `POST /api/datasets/{id}/anomalies`, then displays per-detector flagged counts, row references, numeric eligibility, and method notes. The scan uses all eligible numeric-like columns; column-level filtering remains API-only. Anomaly findings are not included in DQS and never change source rows.
 
@@ -108,6 +109,12 @@ Example preview or apply request:
 Supported operations are exact duplicate removal (first occurrence retained), median imputation for finite numeric columns, mode imputation for categorical columns, whitespace trimming, and explicitly requested lower-case normalization. Numeric imputation rejects columns containing non-numeric or non-finite observed values. Mode ties use the first value returned by pandas mode ordering. Lower-case normalization is marked high risk because case can be semantically meaningful.
 
 Use base_version_id to branch from a prior immutable version; omit it or set it to null to start from the original upload. Each successful apply receives a monotonically increasing per-dataset version number and records its parent, operation manifest, row/column counts, file size, and SHA-256. Storage paths are never returned. A valid operation that produces no changes returns HTTP 409 and creates no version. Preview evidence is capped at ten changed rows and ten cells per row. These operations are deterministic for a fixed input and request, but imputation choices are statistical assumptions and must be reviewed before applying.
+
+### Dashboard cleaning workflow
+
+Open the dataset library and choose **Review cleaning** for a dataset. Select the original upload or a previously created immutable version as the base. Recommendations are advisory; choose only operations justified by the dataset context. Generate a read-only preview, inspect row counts and bounded before/after cell evidence, acknowledge the preview, and then explicitly create a new version. The dashboard refreshes the version history and selects the new version as the next base. The original upload and prior versions are retained.
+
+The dashboard currently compares row counts and sampled cell changes. It does not yet recalculate DQS or full statistical profiles for derived versions; do not interpret the preview as a complete before/after quality evaluation. Lowercase normalization remains high-risk and is not selected by default.
 
 ## Local setup
 
