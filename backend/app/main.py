@@ -37,6 +37,7 @@ from .services.dataset_cleaning import (
     list_dataset_versions,
     preview_cleaning,
 )
+from .services.dataset_comparison import compare_dataset_version_quality
 
 
 @asynccontextmanager
@@ -233,6 +234,26 @@ def get_dataset_cleaning_versions(
     if db.get(Dataset, dataset_id) is None:
         raise HTTPException(status_code=404, detail="Dataset not found.")
     return list_dataset_versions(dataset_id, db)
+
+
+@app.get(
+    "/api/datasets/{dataset_id}/cleaning/versions/{version_id}/quality-comparison",
+    tags=["cleaning"],
+)
+def get_dataset_version_quality_comparison(
+    dataset_id: int, version_id: int, db: Session = Depends(get_db)
+) -> dict:
+    """Compare the original upload's DQS with one immutable derived version."""
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(status_code=404, detail="Dataset not found.")
+    version = db.get(DatasetVersion, version_id)
+    if version is None or version.dataset_id != dataset_id:
+        raise HTTPException(status_code=404, detail="Dataset version not found.")
+    try:
+        return compare_dataset_version_quality(dataset, version)
+    except DatasetQualityFileUnavailableError as exc:
+        raise HTTPException(status_code=410, detail=str(exc)) from exc
 
 
 @app.get("/api/datasets/{dataset_id}", response_model=DatasetRead, tags=["datasets"])

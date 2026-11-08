@@ -228,3 +228,81 @@ def test_numeric_median_rejects_mixed_non_numeric_values(client):
     assert preview.status_code == 422
     assert "non-numeric" in preview.json()["detail"]
     assert list(version_dir.glob("*.csv")) == []
+
+
+
+def test_version_quality_comparison_reports_dqs_deltas_without_mutation(client):
+    test_client, upload_dir, version_dir = client
+    dataset, payload = upload(test_client)
+    apply_response = test_client.post(
+        f"/api/datasets/{dataset['id']}/cleaning/apply",
+        json={
+            "drop_exact_duplicates": True,
+            "fill_numeric_median": ["amount"],
+            "fill_categorical_mode": ["city"],
+            "trim_whitespace": ["city"],
+        },
+    )
+    assert apply_response.status_code == 201
+    version = apply_response.json()["version"]
+    original_path = next(upload_dir.glob("*.csv"))
+    version_path = next(version_dir.glob("*.csv"))
+    original_bytes = original_path.read_bytes()
+    version_bytes = version_path.read_bytes()
+
+    response = test_client.get(
+        f"/api/datasets/{dataset['id']}/cleaning/versions/"
+        f"{version['id']}/quality-comparison"
+    )
+
+    assert response.status_code == 200
+    comparison = response.json()
+    assert comparison["before"]["source_version_id"] is None
+    assert comparison["after"]["source_version_id"] == version["id"]
+    assert comparison["after"]["version_number"] == version["version_number"]
+    assert comparison["before"]["source_sha256"] == dataset["sha256_hash"]
+    assert comparison["after"]["source_sha256"] == version["sha256_hash"]
+    assert comparison["delta"]["rows"] == -1
+    assert comparison["delta"]["overall"] > 0
+    assert comparison["delta"]["components"]["completeness"]["score_delta"] > 0
+    assert comparison["delta"]["components"]["uniqueness"]["score_delta"] > 0
+    assert original_path.read_bytes() == original_bytes == payload
+    assert version_path.read_bytes() == version_bytes
+
+
+def test_version_quality_comparison_rejects_foreign_version(client):
+    test_client, _, _ = client
+    first_dataset, _ = upload(test_client)
+    applied = test_client.post(
+        f"/api/datasets/{first_dataset['id']}/cleaning/apply",
+        json={"trim_whitespace": ["city"]},
+    )
+    assert applied.status_code == 201
+    version_id = applied.json()["version"]["id"]
+    second_dataset, _ = upload(test_client)
+
+    response = test_client.get(
+        f"/api/datasets/{second_dataset['id']}/cleaning/versions/"
+        f"{version_id}/quality-comparison"
+    )
+
+    assert response.status_code == 404
+
+
+def test_version_quality_comparison_returns_gone_for_missing_version_file(client):
+    test_client, _, version_dir = client
+    dataset, _ = upload(test_client)
+    applied = test_client.post(
+        f"/api/datasets/{dataset['id']}/cleaning/apply",
+        json={"trim_whitespace": ["city"]},
+    )
+    assert applied.status_code == 201
+    version_id = applied.json()["version"]["id"]
+    next(version_dir.glob("*.csv")).unlink()
+
+    response = test_client.get(
+        f"/api/datasets/{dataset['id']}/cleaning/versions/"
+        f"{version_id}/quality-comparison"
+    )
+
+    assert response.status_code == 410
