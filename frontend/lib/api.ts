@@ -206,6 +206,58 @@ export async function getDatasetAnomalies(
 
 
 
+export type QualityComparisonComponentName =
+  | "completeness"
+  | "validity"
+  | "uniqueness"
+  | "consistency";
+
+export type QualityVersionComparison = {
+  dataset_id: number;
+  filename: string;
+  compared_at: string;
+  before: {
+    source_version_id: number | null;
+    version_number: number | null;
+    source_sha256: string | null;
+    shape: { rows: number; columns: number };
+    overall: number | null;
+    active_weight_total: number;
+    components: Record<QualityComparisonComponentName, QualityComponent>;
+    issue_count: number;
+    issues_by_severity: { high: number; medium: number; low: number };
+  };
+  after: {
+    source_version_id: number | null;
+    version_number: number | null;
+    source_sha256: string | null;
+    shape: { rows: number; columns: number };
+    overall: number | null;
+    active_weight_total: number;
+    components: Record<QualityComparisonComponentName, QualityComponent>;
+    issue_count: number;
+    issues_by_severity: { high: number; medium: number; low: number };
+  };
+  delta: {
+    overall: number | null;
+    rows: number;
+    columns: number;
+    issue_count: number;
+    issues_by_severity: { high: number; medium: number; low: number };
+    components: Record<
+      QualityComparisonComponentName,
+      {
+        score_delta: number | null;
+        numerator_delta: number;
+        denominator_delta: number;
+        applicable_before: boolean;
+        applicable_after: boolean;
+      }
+    >;
+  };
+  method_notes: string[];
+};
+
 export type CleaningOperationName =
   | "drop_exact_duplicates"
   | "fill_numeric_median"
@@ -336,6 +388,18 @@ export async function getDatasetVersions(datasetId: number): Promise<DatasetVers
     { cache: "no-store" },
   );
   return readResponse<DatasetVersion[]>(response);
+}
+
+export async function getDatasetVersionQualityComparison(
+  datasetId: number,
+  versionId: number,
+): Promise<QualityVersionComparison> {
+  const response = await fetch(
+    API_BASE_URL + "/api/datasets/" + datasetId + "/cleaning/versions/" +
+      versionId + "/quality-comparison",
+    { cache: "no-store" },
+  );
+  return readResponse<QualityVersionComparison>(response);
 }
 
 export async function previewDatasetCleaning(

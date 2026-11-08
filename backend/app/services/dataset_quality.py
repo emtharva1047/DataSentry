@@ -62,19 +62,26 @@ def _issue(
     }
 
 
-def _read_dataset(dataset: Dataset) -> pd.DataFrame:
-    upload_root = dataset_ingestion.UPLOAD_DIR.resolve()
+def _read_dataset(
+    dataset: Dataset,
+    source_path: str | Path | None = None,
+    allowed_root: Path | None = None,
+    encoding: str | None = None,
+) -> pd.DataFrame:
+    """Read a source or derived CSV only from its explicitly permitted storage root."""
+    permitted_root = (allowed_root or dataset_ingestion.UPLOAD_DIR).resolve()
+    candidate = source_path if source_path is not None else dataset.original_path
     try:
-        source_path = Path(dataset.original_path).resolve(strict=True)
-        source_path.relative_to(upload_root)
+        resolved_path = Path(candidate).resolve(strict=True)
+        resolved_path.relative_to(permitted_root)
     except (OSError, ValueError) as exc:
         raise DatasetQualityFileUnavailableError(
-            "The stored dataset file is unavailable or outside the upload directory."
+            "The stored dataset file is unavailable or outside its permitted storage directory."
         ) from exc
 
     try:
         # Keep strings intact so whitespace and case inconsistencies remain observable.
-        return pd.read_csv(source_path, encoding=dataset.encoding, dtype=str)
+        return pd.read_csv(resolved_path, encoding=encoding or dataset.encoding, dtype=str)
     except (OSError, UnicodeDecodeError, EmptyDataError, ParserError, ValueError) as exc:
         raise DatasetQualityFileUnavailableError(
             "The stored CSV could not be read for quality assessment."
@@ -160,9 +167,16 @@ def _component(
     }
 
 
-def assess_dataset_quality(dataset: Dataset) -> dict[str, Any]:
-    """Run deterministic, read-only quality checks and calculate the DQS."""
-    frame = _read_dataset(dataset)
+def assess_dataset_quality(
+    dataset: Dataset,
+    source_path: str | Path | None = None,
+    allowed_root: Path | None = None,
+    encoding: str | None = None,
+    source_version_id: int | None = None,
+    source_sha256: str | None = None,
+) -> dict[str, Any]:
+    """Run deterministic, read-only quality checks for an explicitly scoped CSV."""
+    frame = _read_dataset(dataset, source_path, allowed_root, encoding)
     row_count, column_count = frame.shape
     total_cells = int(row_count * column_count)
     missing_cells = int(frame.isna().sum().sum())
@@ -331,6 +345,8 @@ def assess_dataset_quality(dataset: Dataset) -> dict[str, Any]:
     return {
         "dataset_id": dataset.id,
         "filename": dataset.filename,
+        "source_version_id": source_version_id,
+        "source_sha256": source_sha256 if source_sha256 is not None else dataset.sha256_hash,
         "quality_version": 1,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "shape": {"rows": int(row_count), "columns": int(column_count)},

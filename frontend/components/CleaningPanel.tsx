@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   applyDatasetCleaning,
   getCleaningRecommendations,
+  getDatasetVersionQualityComparison,
   getDatasetVersions,
   previewDatasetCleaning,
   type CleaningApplyResult,
@@ -13,6 +14,7 @@ import {
   type CleaningRequest,
   type Dataset,
   type DatasetVersion,
+  type QualityVersionComparison,
 } from "@/lib/api";
 
 function recommendationKey(item: CleaningRecommendation): string {
@@ -53,6 +55,9 @@ export default function CleaningPanel({ dataset }: { dataset: Dataset | null }) 
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   const [previewReviewed, setPreviewReviewed] = useState(false);
+  const [comparison, setComparison] = useState<QualityVersionComparison | null>(null);
+  const [comparisonError, setComparisonError] = useState<string | null>(null);
+  const [isLoadingComparison, setIsLoadingComparison] = useState(false);
 
   useEffect(() => {
     if (!dataset) return;
@@ -106,6 +111,34 @@ export default function CleaningPanel({ dataset }: { dataset: Dataset | null }) 
     };
   }, [dataset, baseVersionId]);
 
+  const datasetId = dataset?.id;
+
+  useEffect(() => {
+    if (datasetId === undefined || baseVersionId === null) return;
+    let active = true;
+    void getDatasetVersionQualityComparison(datasetId, baseVersionId)
+      .then((result) => {
+        if (active) {
+          setComparison(result);
+          setComparisonError(null);
+        }
+      })
+      .catch((reason: unknown) => {
+        if (active) {
+          setComparison(null);
+          setComparisonError(
+            reason instanceof Error ? reason.message : "Could not compare dataset quality.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setIsLoadingComparison(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [datasetId, baseVersionId]);
+
   const selectedRecommendations = useMemo(
     () => recommendations.filter((item) => selectedKeys.includes(recommendationKey(item))),
     [recommendations, selectedKeys],
@@ -133,6 +166,9 @@ export default function CleaningPanel({ dataset }: { dataset: Dataset | null }) 
   function changeBaseVersion(nextVersionId: number | null) {
     setIsLoadingRecommendations(true);
     setBaseVersionId(nextVersionId);
+    setComparison(null);
+    setComparisonError(null);
+    setIsLoadingComparison(nextVersionId !== null);
     setPreview(null);
     setPreviewReviewed(false);
     setApplied(null);
@@ -177,8 +213,7 @@ export default function CleaningPanel({ dataset }: { dataset: Dataset | null }) 
       setPreviewReviewed(false);
       const updatedVersions = await getDatasetVersions(dataset.id);
       setVersions(updatedVersions);
-      setIsLoadingRecommendations(true);
-      setBaseVersionId(result.version.id);
+      changeBaseVersion(result.version.id);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "The cleaned version could not be created.");
     } finally {
@@ -210,6 +245,115 @@ export default function CleaningPanel({ dataset }: { dataset: Dataset | null }) 
         </div>
       ) : (
         <>
+          {baseVersionId !== null && (
+            <div className="border-b border-slate-800 p-5 sm:p-6" aria-live="polite">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="eyebrow">Quality impact</p>
+                  <h3 className="mt-2 text-base font-semibold text-white">
+                    Version {comparison?.after.version_number ?? versions.find((item) => item.id === baseVersionId)?.version_number ?? ""}
+                    {" "}versus original upload
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500">
+                    The same inference-based DQS rules are recalculated for both files.
+                  </p>
+                </div>
+                {comparison && (
+                  <span className="rounded-full border border-slate-700 bg-slate-950/40 px-3 py-1 text-xs text-slate-300">
+                    {number(comparison.before.issue_count)} → {number(comparison.after.issue_count)} findings
+                  </span>
+                )}
+              </div>
+              {isLoadingComparison ? (
+                <p className="mt-4 text-sm text-slate-400">Recalculating quality for both versions...</p>
+              ) : comparisonError ? (
+                <p role="alert" className="mt-4 text-sm text-rose-200">{comparisonError}</p>
+              ) : comparison ? (
+                <>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-xl border border-slate-800 bg-slate-950/35 p-4">
+                      <p className="text-xs text-slate-500">Original DQS</p>
+                      <p className="mt-2 text-2xl font-semibold text-white">
+                        {comparison.before.overall === null ? "N/A" : comparison.before.overall.toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-slate-800 bg-slate-950/35 p-4">
+                      <p className="text-xs text-slate-500">Version DQS</p>
+                      <p className="mt-2 text-2xl font-semibold text-white">
+                        {comparison.after.overall === null ? "N/A" : comparison.after.overall.toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-slate-800 bg-slate-950/35 p-4">
+                      <p className="text-xs text-slate-500">DQS change</p>
+                      <p className={
+                        "mt-2 text-2xl font-semibold " +
+                        (comparison.delta.overall === null
+                          ? "text-slate-300"
+                          : comparison.delta.overall > 0
+                            ? "text-emerald-200"
+                            : comparison.delta.overall < 0
+                              ? "text-rose-200"
+                              : "text-slate-100")
+                      }>
+                        {comparison.delta.overall === null
+                          ? "N/A"
+                          : (comparison.delta.overall > 0 ? "+" : "") + comparison.delta.overall.toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4 overflow-x-auto rounded-xl border border-slate-800">
+                    <table className="w-full min-w-[560px] text-left text-xs">
+                      <thead className="bg-slate-950/60 text-slate-400">
+                        <tr>
+                          <th className="px-3 py-3 font-semibold">DQS component</th>
+                          <th className="px-3 py-3 font-semibold">Original</th>
+                          <th className="px-3 py-3 font-semibold">Version</th>
+                          <th className="px-3 py-3 font-semibold">Change</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {([
+                          ["Completeness", "completeness"],
+                          ["Validity", "validity"],
+                          ["Uniqueness", "uniqueness"],
+                          ["Consistency", "consistency"],
+                        ] as const).map(([label, key]) => {
+                          const change = comparison.delta.components[key].score_delta;
+                          return (
+                            <tr key={key} className="border-t border-slate-800 text-slate-300">
+                              <th className="px-3 py-3 font-medium text-slate-200">{label}</th>
+                              <td className="px-3 py-3">
+                                {comparison.before.components[key].score === null
+                                  ? "N/A"
+                                  : comparison.before.components[key].score?.toFixed(2)}
+                              </td>
+                              <td className="px-3 py-3">
+                                {comparison.after.components[key].score === null
+                                  ? "N/A"
+                                  : comparison.after.components[key].score?.toFixed(2)}
+                              </td>
+                              <td className="px-3 py-3">
+                                {change === null ? "Not comparable" : (change > 0 ? "+" : "") + change.toFixed(2)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="mt-3 text-xs text-slate-500">
+                    Rows: {number(comparison.before.shape.rows)} → {number(comparison.after.shape.rows)}
+                    {" · "}Columns: {number(comparison.before.shape.columns)} → {number(comparison.after.shape.columns)}
+                    {" · "}Findings: {number(comparison.before.issue_count)} → {number(comparison.after.issue_count)}
+                  </p>
+                  <ul className="mt-2 space-y-1 text-[11px] leading-5 text-slate-500">
+                    {comparison.method_notes.slice(1, 4).map((note) => <li key={note}>{note}</li>)}
+                  </ul>
+                </>
+              ) : null}
+            </div>
+          )}
+
           <div className="grid gap-5 border-b border-slate-800 p-5 sm:p-6">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <label className="block min-w-[240px]">
@@ -485,7 +629,7 @@ export default function CleaningPanel({ dataset }: { dataset: Dataset | null }) 
 
           <div className="border-t border-slate-800 px-5 py-4 sm:px-6">
             <p className="text-[11px] leading-5 text-slate-500">
-              This preview compares row counts and bounded before/after cell evidence. Per-version DQS recalculation and a full statistical before/after comparison are not yet implemented. Review all transformations before using a derived version in research.
+              The selected version's DQS is recalculated against the original upload using the same rules. Full numeric distribution and correlation comparisons are not yet included. Review all transformations before using a derived version in research.
             </p>
           </div>
         </>

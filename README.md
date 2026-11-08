@@ -23,6 +23,10 @@ Anomaly review is available beside the quality check for each dataset. The dashb
 
 Quality findings are evidence for review, not automatic corrections. The inferred validity detector is conservative; explicit business rules must be supplied rather than guessed. Schema validation is available through the API and is supplemental to the inference-based DQS in this version. Case and whitespace variants are review flags. The endpoint does not mutate or delete source data.
 
+## Version quality comparison
+
+When a derived version is selected in the cleaning workspace, DataSentry recalculates the original upload and selected version with the same inference-based DQS rules. The response includes overall and component-level score deltas, applicability, issue counts, row/column counts, and SHA-256 fingerprints. A positive DQS delta indicates a higher score under this rule-based definition; it is not proof of improved downstream model performance. If component applicability changes, the active-weight denominator also changes and must be considered. Full numeric distribution and correlation comparisons remain pending.
+
 ## Technology
 
 - Frontend: Next.js App Router, React, TypeScript, Tailwind CSS.
@@ -42,6 +46,7 @@ Quality findings are evidence for review, not automatic corrections. The inferre
 - `POST /api/datasets/{id}/cleaning/preview` — preview explicitly selected operations without writing a version.
 - `POST /api/datasets/{id}/cleaning/apply` — apply selected operations into a new immutable version.
 - `GET /api/datasets/{id}/cleaning/versions` — list derived versions and their parent lineage.
+- `GET /api/datasets/{id}/cleaning/versions/{version_id}/quality-comparison` — recalculate original and selected version DQS with the same rules and return component deltas.
 - `GET /api/health` and `GET /api/overview` — service and database status.
 
 ### Explicit schema validation
