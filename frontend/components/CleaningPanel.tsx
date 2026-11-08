@@ -629,7 +629,7 @@ export default function CleaningPanel({ dataset }: { dataset: Dataset | null }) 
 
           <div className="border-t border-slate-800 px-5 py-4 sm:px-6">
             <p className="text-[11px] leading-5 text-slate-500">
-              The selected version's DQS is recalculated against the original upload using the same rules. Full numeric distribution and correlation comparisons are not yet included. Review all transformations before using a derived version in research.
+              The selected version DQS is recalculated against the original upload using the same rules. Full numeric distribution and correlation comparisons are not yet included. Review all transformations before using a derived version in research.
             </p>
           </div>
         </>
