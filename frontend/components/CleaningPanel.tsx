@@ -341,6 +341,143 @@ export default function CleaningPanel({ dataset }: { dataset: Dataset | null }) 
                       </tbody>
                     </table>
                   </div>
+                  <div className="mt-5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <h4 className="text-sm font-semibold text-white">Numeric distribution comparison</h4>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Summary deltas are version minus original. Histograms use shared bin edges where both versions contain the numeric column.
+                        </p>
+                      </div>
+                      <span className="text-xs text-slate-500">
+                        {number(comparison.profile_comparison.numeric_column_count_before)} → {number(comparison.profile_comparison.numeric_column_count_after)} numeric columns
+                      </span>
+                    </div>
+                    {comparison.profile_comparison.numeric_columns.length === 0 ? (
+                      <p className="mt-3 rounded-xl border border-slate-800 bg-slate-950/35 p-4 text-sm text-slate-400">
+                        No numeric columns are available for profile comparison.
+                      </p>
+                    ) : (
+                      <div className="mt-3 overflow-x-auto rounded-xl border border-slate-800">
+                        <table className="w-full min-w-[680px] text-left text-xs">
+                          <thead className="bg-slate-950/60 text-slate-400">
+                            <tr>
+                              <th className="px-3 py-3 font-semibold">Column</th>
+                              <th className="px-3 py-3 font-semibold">Mean Δ</th>
+                              <th className="px-3 py-3 font-semibold">Median Δ</th>
+                              <th className="px-3 py-3 font-semibold">Std. dev. Δ</th>
+                              <th className="px-3 py-3 font-semibold">Range before → after</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {comparison.profile_comparison.numeric_columns.map((column) => (
+                              <tr key={column.column} className="border-t border-slate-800 text-slate-300">
+                                <th className="px-3 py-3 font-medium text-slate-200">{column.column}</th>
+                                <td className="px-3 py-3">
+                                  {column.summary_deltas.mean === null ? "N/A" : column.summary_deltas.mean.toFixed(2)}
+                                </td>
+                                <td className="px-3 py-3">
+                                  {column.summary_deltas.median === null ? "N/A" : column.summary_deltas.median.toFixed(2)}
+                                </td>
+                                <td className="px-3 py-3">
+                                  {column.summary_deltas.std === null ? "N/A" : column.summary_deltas.std.toFixed(2)}
+                                </td>
+                                <td className="px-3 py-3">
+                                  {column.before_summary?.min ?? "N/A"}–{column.before_summary?.max ?? "N/A"}
+                                  {" → "}
+                                  {column.after_summary?.min ?? "N/A"}–{column.after_summary?.max ?? "N/A"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    <div className="mt-3 space-y-2">
+                      {comparison.profile_comparison.numeric_columns.map((column) => (
+                        <details key={column.column} className="rounded-xl border border-slate-800 bg-slate-950/35 p-3">
+                          <summary className="cursor-pointer text-xs font-semibold text-slate-200">
+                            Histogram bins · {column.column}
+                          </summary>
+                          {column.histogram_bins_comparable ? (
+                            <div className="mt-3 overflow-x-auto">
+                              <table className="w-full min-w-[440px] text-left text-[11px]">
+                                <thead className="text-slate-500">
+                                  <tr>
+                                    <th className="px-2 py-2">Shared bin range</th>
+                                    <th className="px-2 py-2">Original count</th>
+                                    <th className="px-2 py-2">Version count</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {column.before_histogram.map((bin, index) => {
+                                    const afterBin = column.after_histogram[index];
+                                    return (
+                                      <tr key={index} className="border-t border-slate-800 text-slate-300">
+                                        <td className="px-2 py-2">
+                                          {bin.bin_start?.toFixed(2) ?? "N/A"}–{bin.bin_end?.toFixed(2) ?? "N/A"}
+                                        </td>
+                                        <td className="px-2 py-2">{number(bin.count)}</td>
+                                        <td className="px-2 py-2">{number(afterBin?.count ?? 0)}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <p className="mt-2 text-xs text-slate-500">
+                              A shared histogram cannot be calculated because this column is not numeric in both versions.
+                            </p>
+                          )}
+                        </details>
+                      ))}
+                    </div>
+                    <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/35 p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h4 className="text-sm font-semibold text-white">Pearson correlation changes</h4>
+                        <span className="text-xs text-slate-500">
+                          {number(comparison.profile_comparison.correlations.comparable_pair_count)} comparable pairs
+                        </span>
+                      </div>
+                      {comparison.profile_comparison.correlations.pairs.length === 0 ? (
+                        <p className="mt-2 text-xs text-slate-400">No column pair has a defined Pearson correlation in both versions.</p>
+                      ) : (
+                        <details className="mt-2">
+                          <summary className="cursor-pointer text-xs text-slate-300">
+                            Inspect pairwise correlations ({number(comparison.profile_comparison.correlations.skipped_pair_count)} skipped)
+                          </summary>
+                          <div className="mt-3 overflow-x-auto">
+                            <table className="w-full min-w-[440px] text-left text-[11px]">
+                              <thead className="text-slate-500">
+                                <tr>
+                                  <th className="px-2 py-2">Column pair</th>
+                                  <th className="px-2 py-2">Original</th>
+                                  <th className="px-2 py-2">Version</th>
+                                  <th className="px-2 py-2">Δ</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {comparison.profile_comparison.correlations.pairs.map((pair) => (
+                                  <tr key={pair.left_column + ":" + pair.right_column} className="border-t border-slate-800 text-slate-300">
+                                    <th className="px-2 py-2 font-medium text-slate-200">{pair.left_column} × {pair.right_column}</th>
+                                    <td className="px-2 py-2">{pair.before.toFixed(4)}</td>
+                                    <td className="px-2 py-2">{pair.after.toFixed(4)}</td>
+                                    <td className="px-2 py-2">{pair.delta > 0 ? "+" : ""}{pair.delta.toFixed(4)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </details>
+                      )}
+                    </div>
+                    {comparison.profile_comparison.numeric_columns_truncated && (
+                      <p className="mt-2 text-[11px] text-slate-500">
+                        Numeric profile comparison is capped at the first 20 numeric columns.
+                      </p>
+                    )}
+                  </div>
                   <p className="mt-3 text-xs text-slate-500">
                     Rows: {number(comparison.before.shape.rows)} → {number(comparison.after.shape.rows)}
                     {" · "}Columns: {number(comparison.before.shape.columns)} → {number(comparison.after.shape.columns)}

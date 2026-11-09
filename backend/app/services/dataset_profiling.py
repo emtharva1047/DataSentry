@@ -46,7 +46,7 @@ def _column_type(series: pd.Series, unique_count: int, row_count: int) -> str:
     return "categorical" if unique_count <= categorical_threshold else "text"
 
 
-def _profile_column(name: str, series: pd.Series, row_count: int) -> dict[str, Any]:
+def _profile_column(name: str, series: pd.Series, row_count: int, histogram_range: tuple[float, float] | None = None) -> dict[str, Any]:
     non_null = int(series.notna().sum())
     missing = row_count - non_null
     unique_count = int(series.nunique(dropna=True))
@@ -73,7 +73,15 @@ def _profile_column(name: str, series: pd.Series, row_count: int) -> dict[str, A
                 "q1": _number_or_none(values.quantile(0.25)),
                 "q3": _number_or_none(values.quantile(0.75)),
             }
-            counts, edges = np.histogram(values.to_numpy(), bins=HISTOGRAM_BINS)
+            histogram_kwargs: dict[str, Any] = {}
+            if histogram_range is not None:
+                lower, upper = histogram_range
+                if lower == upper:
+                    padding = max(abs(lower) * 0.01, 0.5)
+                    lower -= padding
+                    upper += padding
+                histogram_kwargs["range"] = (lower, upper)
+            counts, edges = np.histogram(values.to_numpy(), bins=HISTOGRAM_BINS, **histogram_kwargs)
             profile["histogram"] = [
                 {
                     "bin_start": _number_or_none(edges[index]),
@@ -96,25 +104,36 @@ def _profile_column(name: str, series: pd.Series, row_count: int) -> dict[str, A
     return profile
 
 
-def profile_dataset(dataset: Dataset) -> dict[str, Any]:
-    """Generate schema, missingness, summary, distribution, and correlation data."""
-    upload_root = dataset_ingestion.UPLOAD_DIR.resolve()
+def profile_dataset(
+    dataset: Dataset,
+    *,
+    source_path: str | Path | None = None,
+    allowed_root: Path | None = None,
+    encoding: str | None = None,
+    histogram_ranges: dict[str, tuple[float, float]] | None = None,
+    source_version_id: int | None = None,
+    source_sha256: str | None = None,
+) -> dict[str, Any]:
+    """Profile an upload or a derived CSV under an explicitly permitted root."""
+    permitted_root = (allowed_root or dataset_ingestion.UPLOAD_DIR).resolve()
+    candidate_path = source_path if source_path is not None else dataset.original_path
     try:
-        source_path = Path(dataset.original_path).resolve(strict=True)
-        source_path.relative_to(upload_root)
+        resolved_path = Path(candidate_path).resolve(strict=True)
+        resolved_path.relative_to(permitted_root)
     except (OSError, ValueError) as exc:
         raise DatasetFileUnavailableError(
-            "The stored dataset file is unavailable or outside the upload directory."
+            "The stored dataset file is unavailable or outside its permitted storage directory."
         ) from exc
 
     try:
-        frame = pd.read_csv(source_path, encoding=dataset.encoding)
+        frame = pd.read_csv(resolved_path, encoding=encoding or dataset.encoding)
     except (OSError, UnicodeDecodeError, EmptyDataError, ParserError, ValueError) as exc:
         raise DatasetFileUnavailableError("The stored CSV could not be read for profiling.") from exc
 
     row_count, column_count = frame.shape
+    ranges = histogram_ranges or {}
     columns = [
-        _profile_column(str(name), frame[name], row_count)
+        _profile_column(str(name), frame[name], row_count, ranges.get(str(name)))
         for name in frame.columns
     ]
     missing_cells = int(frame.isna().sum().sum())
@@ -138,6 +157,8 @@ def profile_dataset(dataset: Dataset) -> dict[str, Any]:
     return {
         "dataset_id": dataset.id,
         "filename": dataset.filename,
+        "source_version_id": source_version_id,
+        "source_sha256": source_sha256 if source_sha256 is not None else dataset.sha256_hash,
         "profile_version": 1,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "shape": {"rows": int(row_count), "columns": int(column_count)},

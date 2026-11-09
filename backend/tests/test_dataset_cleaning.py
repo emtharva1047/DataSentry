@@ -306,3 +306,63 @@ def test_version_quality_comparison_returns_gone_for_missing_version_file(client
     )
 
     assert response.status_code == 410
+
+
+
+def test_version_quality_comparison_includes_aligned_numeric_profiles_and_correlations(client):
+    test_client, upload_dir, version_dir = client
+    payload = (
+        b"amount,units,category\n"
+        b"10,1,Retail\n"
+        b",2, Retail \n"
+        b"30,3,Retail\n"
+        b"100,4,Retail\n"
+    )
+    uploaded = test_client.post(
+        "/api/datasets/upload",
+        files={"file": ("numeric.csv", payload, "text/csv")},
+    )
+    assert uploaded.status_code == 201
+    dataset = uploaded.json()
+
+    applied = test_client.post(
+        f"/api/datasets/{dataset['id']}/cleaning/apply",
+        json={
+            "fill_numeric_median": ["amount"],
+            "trim_whitespace": ["category"],
+        },
+    )
+    assert applied.status_code == 201
+    version = applied.json()["version"]
+    original_path = next(upload_dir.glob("*.csv"))
+    version_path = next(version_dir.glob("*.csv"))
+    original_bytes = original_path.read_bytes()
+    version_bytes = version_path.read_bytes()
+
+    response = test_client.get(
+        f"/api/datasets/{dataset['id']}/cleaning/versions/"
+        f"{version['id']}/quality-comparison"
+    )
+
+    assert response.status_code == 200
+    profile = response.json()["profile_comparison"]
+    amount = next(item for item in profile["numeric_columns"] if item["column"] == "amount")
+    assert amount["status"] == "comparable"
+    assert amount["summary_deltas"]["mean"] != 0
+    assert amount["histogram_bins_comparable"] is True
+    assert len(amount["before_histogram"]) == 10
+    assert len(amount["after_histogram"]) == 10
+    assert [
+        (item["bin_start"], item["bin_end"]) for item in amount["before_histogram"]
+    ] == [
+        (item["bin_start"], item["bin_end"]) for item in amount["after_histogram"]
+    ]
+
+    pair = next(
+        item for item in profile["correlations"]["pairs"]
+        if {item["left_column"], item["right_column"]} == {"amount", "units"}
+    )
+    assert pair["delta"] != 0
+    assert profile["correlations"]["comparable_pair_count"] >= 1
+    assert original_path.read_bytes() == original_bytes == payload
+    assert version_path.read_bytes() == version_bytes

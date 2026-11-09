@@ -4,7 +4,7 @@
 
 DataSentry is a research-oriented full-stack application that profiles tabular datasets, detects quality issues using statistical, rule-based, and machine-learning techniques, recommends transparent cleaning actions, and evaluates how data defects affect downstream ML models.
 
-> **Status:** The FastAPI backend supports validated CSV ingestion, SQLite metadata persistence, dataset listing/detail, read-only statistical profiling, inferred quality assessment with an explainable Data Quality Score (DQS), and explicit caller-supplied schema/domain validation. The Next.js dashboard provides API status, dataset metrics, a dataset library, CSV upload, an interactive quality report, and configurable numerical anomaly scans with detector evidence. Frontend lint, TypeScript, and production-build checks are enforced in GitHub Actions. Profile visualization, live browser upload verification, cleaning, ML-readiness, and controlled research evaluation remain in progress.
+> **Status:** The FastAPI backend supports validated CSV ingestion, SQLite metadata persistence, statistical profiling, explainable quality assessment, explicit schema/domain validation, anomaly detection, safe cleaning, immutable versions, and DQS/numeric-profile comparison. The Next.js dashboard integrates quality reports, anomaly review, cleaning previews, explicit apply, version history, and before/after comparisons. Live browser-to-API verification, ML-readiness, and controlled research evaluation remain in progress.
 
 ## Current capabilities
 
@@ -17,7 +17,7 @@ DataSentry is a research-oriented full-stack application that profiles tabular d
 - Browser workspace with API status, dataset listing, CSV upload, upload feedback, and refresh.
 - Interactive quality report viewer with overall DQS, component numerators/denominators, severity counts, issue evidence, and detector notes.
 - Interactive numerical anomaly review with IQR, modified robust Z-score, and Isolation Forest selection; configurable thresholds, contamination, random seed, and tree count; numeric-column eligibility diagnostics; flagged-row evidence; and source fingerprint display.
-- Interactive safe-cleaning workflow with advisory recommendations, explicit operation selection, read-only before/after row previews, a review acknowledgement before apply, and immutable version history.
+- Interactive safe-cleaning workflow with advisory recommendations, explicit operation selection, read-only before/after row previews, a review acknowledgement before apply, immutable version history, and DQS/numeric-profile comparison.
 
 Anomaly review is available beside the quality check for each dataset. The dashboard sends detector selections and validated parameters to `POST /api/datasets/{id}/anomalies`, then displays per-detector flagged counts, row references, numeric eligibility, and method notes. The scan uses all eligible numeric-like columns; column-level filtering remains API-only. Anomaly findings are not included in DQS and never change source rows.
 
@@ -25,7 +25,7 @@ Quality findings are evidence for review, not automatic corrections. The inferre
 
 ## Version quality comparison
 
-When a derived version is selected in the cleaning workspace, DataSentry recalculates the original upload and selected version with the same inference-based DQS rules. The response includes overall and component-level score deltas, applicability, issue counts, row/column counts, and SHA-256 fingerprints. A positive DQS delta indicates a higher score under this rule-based definition; it is not proof of improved downstream model performance. If component applicability changes, the active-weight denominator also changes and must be considered. Full numeric distribution and correlation comparisons remain pending.
+When a derived version is selected in the cleaning workspace, DataSentry recalculates the original upload and selected version with the same inference-based DQS rules. The response includes overall and component-level score deltas, applicability, issue counts, row/column counts, and SHA-256 fingerprints. A positive DQS delta indicates a higher score under this rule-based definition; it is not proof of improved downstream model performance. If component applicability changes, the active-weight denominator also changes and must be considered. Numeric comparison now includes before/after numeric summaries, aligned 10-bin histograms, and pairwise Pearson correlation deltas for up to 20 numeric columns. Histograms use shared per-column bin edges when a column is numeric in both versions; correlation deltas are omitted when either correlation is undefined. Categorical frequency comparisons remain out of scope.
 
 ## Technology
 
@@ -46,7 +46,7 @@ When a derived version is selected in the cleaning workspace, DataSentry recalcu
 - `POST /api/datasets/{id}/cleaning/preview` — preview explicitly selected operations without writing a version.
 - `POST /api/datasets/{id}/cleaning/apply` — apply selected operations into a new immutable version.
 - `GET /api/datasets/{id}/cleaning/versions` — list derived versions and their parent lineage.
-- `GET /api/datasets/{id}/cleaning/versions/{version_id}/quality-comparison` — recalculate original and selected version DQS with the same rules and return component deltas.
+- `GET /api/datasets/{id}/cleaning/versions/{version_id}/quality-comparison` — recalculate original and selected version DQS and compare numeric summaries, shared-bin histograms, and defined Pearson correlation pairs.
 - `GET /api/health` and `GET /api/overview` — service and database status.
 
 ### Explicit schema validation
@@ -119,7 +119,7 @@ Use base_version_id to branch from a prior immutable version; omit it or set it 
 
 Open the dataset library and choose **Review cleaning** for a dataset. Select the original upload or a previously created immutable version as the base. Recommendations are advisory; choose only operations justified by the dataset context. Generate a read-only preview, inspect row counts and bounded before/after cell evidence, acknowledge the preview, and then explicitly create a new version. The dashboard refreshes the version history and selects the new version as the next base. The original upload and prior versions are retained.
 
-The dashboard currently compares row counts and sampled cell changes. It does not yet recalculate DQS or full statistical profiles for derived versions; do not interpret the preview as a complete before/after quality evaluation. Lowercase normalization remains high-risk and is not selected by default.
+The dashboard compares row counts, sampled cell changes, DQS components, numeric summaries, aligned histograms, and defined Pearson correlation pairs for up to 20 numeric columns. Categorical frequency distributions are not yet compared, and live browser-to-FastAPI workflow verification remains pending. Lowercase normalization remains high-risk and is not selected by default.
 
 ## Local setup
 
