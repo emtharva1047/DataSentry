@@ -212,6 +212,57 @@ export type QualityComparisonComponentName =
   | "uniqueness"
   | "consistency";
 
+export type NumericProfileSummary = {
+  min: number | null;
+  max: number | null;
+  mean: number | null;
+  median: number | null;
+  std: number | null;
+  q1: number | null;
+  q3: number | null;
+};
+
+export type ProfileHistogramBin = {
+  bin_start: number | null;
+  bin_end: number | null;
+  count: number;
+};
+
+export type NumericProfileComparisonColumn = {
+  column: string;
+  status: "comparable" | "not_comparable";
+  before_summary: NumericProfileSummary | null;
+  after_summary: NumericProfileSummary | null;
+  summary_deltas: NumericProfileSummary;
+  before_histogram: ProfileHistogramBin[];
+  after_histogram: ProfileHistogramBin[];
+  histogram_bins_comparable: boolean;
+};
+
+export type CorrelationComparisonPair = {
+  left_column: string;
+  right_column: string;
+  before: number;
+  after: number;
+  delta: number;
+};
+
+export type NumericProfileComparison = {
+  numeric_column_count_before: number;
+  numeric_column_count_after: number;
+  numeric_columns_truncated: boolean;
+  numeric_columns: NumericProfileComparisonColumn[];
+  correlations: {
+    method: "pearson";
+    before_column_count: number;
+    after_column_count: number;
+    comparable_pair_count: number;
+    skipped_pair_count: number;
+    pairs: CorrelationComparisonPair[];
+  };
+  method_notes: string[];
+};
+
 export type QualityVersionComparison = {
   dataset_id: number;
   filename: string;
@@ -255,6 +306,7 @@ export type QualityVersionComparison = {
       }
     >;
   };
+  profile_comparison: NumericProfileComparison;
   method_notes: string[];
 };
 

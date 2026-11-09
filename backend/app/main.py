@@ -252,7 +252,7 @@ def get_dataset_version_quality_comparison(
         raise HTTPException(status_code=404, detail="Dataset version not found.")
     try:
         return compare_dataset_version_quality(dataset, version)
-    except DatasetQualityFileUnavailableError as exc:
+    except (DatasetQualityFileUnavailableError, DatasetFileUnavailableError) as exc:
         raise HTTPException(status_code=410, detail=str(exc)) from exc
 
 
