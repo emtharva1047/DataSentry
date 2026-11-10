@@ -1,5 +1,7 @@
 """Read-only, explainable ML-readiness diagnostics for tabular datasets."""
 from datetime import datetime, timezone
+from hashlib import sha256
+from itertools import combinations
 from pathlib import Path
 from typing import Any
 
@@ -162,21 +164,38 @@ def _feature_redundancy(
         if valid_count >= MIN_NUMERIC_VALUES and ratio >= MIN_NUMERIC_PARSEABILITY:
             numeric_candidates[name] = values
 
-    for left_index, left_name in enumerate(names):
-        for right_name in names[left_index + 1 :]:
-            compared_count, agreement, coverage = _exact_match_rate(
-                features[left_name], features[right_name]
+    # Hash each feature column once, then verify candidate groups by digest.
+    # This keeps wide-dataset duplicate checks O(rows × columns), not O(rows × columns²).
+    fingerprint_groups: dict[str, list[str]] = {}
+    for name in names:
+        hashes = pd.util.hash_pandas_object(features[name], index=False, categorize=True)
+        fingerprint = sha256(hashes.to_numpy(dtype="uint64").tobytes()).hexdigest()
+        fingerprint_groups.setdefault(fingerprint, []).append(name)
+
+    total_exact_pairs = 0
+    for group in fingerprint_groups.values():
+        if len(group) < 2:
+            continue
+        compared_count = int(features[group[0]].notna().sum())
+        coverage = compared_count / len(features) if len(features) else 0.0
+        if compared_count < 2 or coverage < 0.8:
+            continue
+        total_exact_pairs += len(group) * (len(group) - 1) // 2
+        for left_name, right_name in combinations(group, 2):
+            if len(exact_pairs) >= MAX_EVIDENCE_PAIRS:
+                break
+            exact_pairs.append(
+                {
+                    "left_feature": left_name,
+                    "right_feature": right_name,
+                    "agreement_pct": 100.0,
+                    "coverage_pct": round(coverage * 100, 2),
+                    "compared_rows": compared_count,
+                }
             )
-            if compared_count >= 2 and coverage >= 0.8 and agreement >= 0.999:
-                exact_pairs.append(
-                    {
-                        "left_feature": left_name,
-                        "right_feature": right_name,
-                        "agreement_pct": round(agreement * 100, 2),
-                        "coverage_pct": round(coverage * 100, 2),
-                        "compared_rows": compared_count,
-                    }
-                )
+        if len(exact_pairs) >= MAX_EVIDENCE_PAIRS:
+            break
+
 
     numeric_names = list(numeric_candidates)[:MAX_NUMERIC_FEATURES]
     for left_index, left_name in enumerate(numeric_names):
@@ -202,14 +221,14 @@ def _feature_redundancy(
                     }
                 )
 
-    total_pairs = len(exact_pairs) + len(correlated_pairs)
-    combined = (exact_pairs + correlated_pairs)[:MAX_EVIDENCE_PAIRS]
+    reported_exact_pairs = exact_pairs[:MAX_EVIDENCE_PAIRS]
+    reported_correlated_pairs = correlated_pairs[:MAX_EVIDENCE_PAIRS]
     return {
-        "exact_duplicate_feature_pairs": exact_pairs[:MAX_EVIDENCE_PAIRS],
-        "high_correlation_pairs": correlated_pairs[:MAX_EVIDENCE_PAIRS],
-        "reported_pair_limit": MAX_EVIDENCE_PAIRS,
-        "pairs_truncated": total_pairs > MAX_EVIDENCE_PAIRS,
-        "reported_pair_count": len(combined),
+        "exact_duplicate_feature_pairs": reported_exact_pairs,
+        "high_correlation_pairs": reported_correlated_pairs,
+        "reported_pair_limit_per_category": MAX_EVIDENCE_PAIRS,
+        "pairs_truncated": total_exact_pairs > MAX_EVIDENCE_PAIRS or len(correlated_pairs) > MAX_EVIDENCE_PAIRS,
+        "reported_pair_count": len(reported_exact_pairs) + len(reported_correlated_pairs),
         "numeric_columns_assessed": numeric_names,
         "numeric_columns_truncated": len(numeric_candidates) > MAX_NUMERIC_FEATURES,
         "correlation_threshold": correlation_threshold,
