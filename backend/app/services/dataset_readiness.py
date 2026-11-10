@@ -172,6 +172,7 @@ def _feature_redundancy(
         fingerprint = sha256(hashes.to_numpy(dtype="uint64").tobytes()).hexdigest()
         fingerprint_groups.setdefault(fingerprint, []).append(name)
 
+    valid_duplicate_groups: list[tuple[list[str], int, float]] = []
     total_exact_pairs = 0
     for group in fingerprint_groups.values():
         if len(group) < 2:
@@ -181,6 +182,9 @@ def _feature_redundancy(
         if compared_count < 2 or coverage < 0.8:
             continue
         total_exact_pairs += len(group) * (len(group) - 1) // 2
+        valid_duplicate_groups.append((group, compared_count, coverage))
+
+    for group, compared_count, coverage in valid_duplicate_groups:
         for left_name, right_name in combinations(group, 2):
             if len(exact_pairs) >= MAX_EVIDENCE_PAIRS:
                 break
