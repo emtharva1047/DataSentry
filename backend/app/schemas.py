@@ -125,3 +125,35 @@ class CleaningRequest(BaseModel):
         if not self.drop_exact_duplicates and not any(operations):
             raise ValueError("select at least one explicit cleaning operation")
         return self
+
+
+class MLReadinessRequest(BaseModel):
+    """Target and feature selection for deterministic ML-readiness diagnostics."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    target_column: str = Field(min_length=1, max_length=255)
+    task_type: Literal["classification", "regression"]
+    feature_columns: list[str] | None = Field(default=None, min_length=1, max_length=200)
+    leakage_threshold: float = Field(default=0.995, ge=0.8, le=1.0, allow_inf_nan=False)
+    correlation_threshold: float = Field(default=0.95, ge=0.5, le=1.0, allow_inf_nan=False)
+    min_class_count: int = Field(default=5, ge=1, le=1000)
+    majority_class_threshold: float = Field(default=0.8, gt=0.5, le=1.0, allow_inf_nan=False)
+
+    @field_validator("target_column")
+    @classmethod
+    def validate_target_column(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("target_column must not be blank")
+        return value
+
+    @field_validator("feature_columns")
+    @classmethod
+    def validate_feature_columns(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return value
+        if any(not name.strip() or len(name) > 255 for name in value):
+            raise ValueError("feature column names must be non-empty and at most 255 characters")
+        if len(value) != len(set(value)):
+            raise ValueError("feature_columns must not contain duplicates")
+        return value

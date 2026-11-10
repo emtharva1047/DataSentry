@@ -4,7 +4,7 @@
 
 DataSentry is a research-oriented full-stack application that profiles tabular datasets, detects quality issues using statistical, rule-based, and machine-learning techniques, recommends transparent cleaning actions, and evaluates how data defects affect downstream ML models.
 
-> **Status:** The FastAPI backend supports validated CSV ingestion, SQLite metadata persistence, statistical profiling, explainable quality assessment, explicit schema/domain validation, anomaly detection, safe cleaning, immutable versions, and DQS/numeric-profile comparison. The Next.js dashboard integrates quality reports, anomaly review, cleaning previews, explicit apply, version history, and before/after comparisons. Live browser-to-API verification, ML-readiness, and controlled research evaluation remain in progress.
+> **Status:** The FastAPI backend supports validated CSV ingestion, SQLite metadata persistence, statistical profiling, explainable quality assessment, explicit schema/domain validation, anomaly detection, safe cleaning, immutable versions, and DQS/numeric-profile comparison. The Next.js dashboard integrates quality reports, anomaly review, cleaning previews, explicit apply, version history, and before/after comparisons. Live browser-to-API verification, baseline model training, and controlled research evaluation remain in progress. A read-only ML-readiness diagnostic endpoint is implemented.
 
 ## Current capabilities
 
@@ -18,6 +18,7 @@ DataSentry is a research-oriented full-stack application that profiles tabular d
 - Interactive quality report viewer with overall DQS, component numerators/denominators, severity counts, issue evidence, and detector notes.
 - Interactive numerical anomaly review with IQR, modified robust Z-score, and Isolation Forest selection; configurable thresholds, contamination, random seed, and tree count; numeric-column eligibility diagnostics; flagged-row evidence; and source fingerprint display.
 - Interactive safe-cleaning workflow with advisory recommendations, explicit operation selection, read-only before/after row previews, a review acknowledgement before apply, immutable version history, and DQS/numeric-profile comparison.
+- Read-only ML-readiness diagnostics for target completeness, classification imbalance, suspicious target copies/associations, duplicate feature-vector split risks, feature redundancy, missing feature values, and dataset-size caveats.
 
 Anomaly review is available beside the quality check for each dataset. The dashboard sends detector selections and validated parameters to `POST /api/datasets/{id}/anomalies`, then displays per-detector flagged counts, row references, numeric eligibility, and method notes. The scan uses all eligible numeric-like columns; column-level filtering remains API-only. Anomaly findings are not included in DQS and never change source rows.
 
@@ -47,6 +48,7 @@ When a derived version is selected in the cleaning workspace, DataSentry recalcu
 - `POST /api/datasets/{id}/cleaning/apply` — apply selected operations into a new immutable version.
 - `GET /api/datasets/{id}/cleaning/versions` — list derived versions and their parent lineage.
 - `GET /api/datasets/{id}/cleaning/versions/{version_id}/quality-comparison` — recalculate original and selected version DQS and compare numeric summaries, shared-bin histograms, and defined Pearson correlation pairs.
+- `POST /api/datasets/{id}/ml-readiness` — deterministic target, class-balance, leakage-heuristic, duplicate-split, redundancy, and sample-size diagnostics; does not fit a model.
 - `GET /api/health` and `GET /api/overview` — service and database status.
 
 ### Explicit schema validation
