@@ -9,7 +9,7 @@
 - [x] M5 — Explainable DQS: completeness, validity, uniqueness, and consistency components expose numerators/denominators; inapplicable dimensions are excluded and active weights are renormalized.
 - [ ] M6 — Anomaly detection: read-only IQR, modified robust Z-score, and seeded Isolation Forest APIs plus configurable dashboard controls and evidence views are implemented; controlled ground-truth evaluation remains.
 - [ ] M7 — Safe cleaning: advisory recommendations, read-only preview, explicit apply, immutable versions, dashboard operation selection, bounded before/after row evidence, review acknowledgement, version history, DQS comparison, numeric summary deltas, aligned histograms, and Pearson correlation deltas are implemented; live browser workflow verification remains.
-- [ ] M8 — ML readiness: target checks, imbalance, leakage warnings, and baseline models.
+- [ ] M8 — ML readiness: deterministic target completeness, classification imbalance, regression target parseability, leakage heuristics, duplicate feature-vector split risk, feature redundancy, and dataset-size diagnostics are implemented at `POST /api/datasets/{id}/ml-readiness`; dashboard integration and leakage-safe classifier/regressor baselines remain.
 - [ ] M9 — Research lab: seeded corruption, ground truth, metrics, and runtime benchmarks.
 - [ ] M10 — Hardening: tests, documentation, research report, demo, and deployment.
 

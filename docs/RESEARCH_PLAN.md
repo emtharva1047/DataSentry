@@ -64,6 +64,12 @@ Imputation is not universally safe: median can compress numeric variance, mode c
 
 For defect detection: precision, recall, F1, confusion counts, and execution time. Record memory where feasible. For classification: F1 and appropriate complementary metrics. For regression: MAE and RMSE. Repeat stochastic experiments across seeds and report mean and standard deviation.
 
+## ML-readiness diagnostics
+
+The read-only endpoint `POST /api/datasets/{id}/ml-readiness` accepts a target column, task type, and optional feature-column selection. It reports target completeness; classification class counts, majority share, minority count, and imbalance ratio; regression target numeric parseability; feature missingness; duplicate feature vectors with the target excluded; near-exact target copies; near-perfect numeric target associations for regression; exact duplicate feature pairs; high Pearson-correlation feature pairs; and sample-size/dimensionality caveats. Numeric redundancy checks are capped at 20 eligible features. Thresholds are returned with the report, along with pandas, NumPy, and scikit-learn versions.
+
+The diagnostics are deterministic heuristics, not proof of leakage or a guarantee that a dataset is model-ready. Exact target copies and very high associations require source/provenance review. Correlation can reflect a legitimate relationship. Duplicate feature vectors can create split contamination under random row splitting; group-aware splitting may be preferable. The endpoint does not fit a model or modify data. Baseline classifier/regressor pipelines and their train-only preprocessing remain outstanding.
+
 ## Downstream model experiment
 
 Split the clean reference data into training and test sets before corruption. Corrupt training data only for the primary experiment and keep the test set untouched. Fit imputation, scaling, encoding, and feature selection only on training data. Compare models trained on clean training data, corrupted training data, and cleaned corrupted training data using the same split and model configuration.

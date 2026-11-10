@@ -13,6 +13,7 @@ from .schemas import (
     CleaningRequest,
     DatasetRead,
     DatasetSchemaValidationRequest,
+    MLReadinessRequest,
 )
 from .services.dataset_ingestion import (
     DatasetTooLargeError,
@@ -38,6 +39,11 @@ from .services.dataset_cleaning import (
     preview_cleaning,
 )
 from .services.dataset_comparison import compare_dataset_version_quality
+from .services.dataset_readiness import (
+    DatasetReadinessFileUnavailableError,
+    DatasetReadinessRequestError,
+    assess_ml_readiness,
+)
 
 
 @asynccontextmanager
@@ -253,6 +259,24 @@ def get_dataset_version_quality_comparison(
     try:
         return compare_dataset_version_quality(dataset, version)
     except (DatasetQualityFileUnavailableError, DatasetFileUnavailableError) as exc:
+        raise HTTPException(status_code=410, detail=str(exc)) from exc
+
+
+@app.post("/api/datasets/{dataset_id}/ml-readiness", tags=["ml-readiness"])
+def post_dataset_ml_readiness(
+    dataset_id: int,
+    request: MLReadinessRequest,
+    db: Session = Depends(get_db),
+) -> dict:
+    """Return read-only target, leakage, duplicate-split, redundancy, and size diagnostics."""
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(status_code=404, detail="Dataset not found.")
+    try:
+        return assess_ml_readiness(dataset, request.model_dump())
+    except DatasetReadinessRequestError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except DatasetReadinessFileUnavailableError as exc:
         raise HTTPException(status_code=410, detail=str(exc)) from exc
 
 
