@@ -157,3 +157,33 @@ class MLReadinessRequest(BaseModel):
         if len(value) != len(set(value)):
             raise ValueError("feature_columns must not contain duplicates")
         return value
+
+
+class MLBaselineRequest(BaseModel):
+    """Seeded holdout configuration for one baseline classification or regression."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    target_column: str = Field(min_length=1, max_length=255)
+    task_type: Literal["classification", "regression"]
+    feature_columns: list[str] | None = Field(default=None, min_length=1, max_length=200)
+    test_size: float = Field(default=0.25, gt=0.1, lt=0.5, allow_inf_nan=False)
+    random_state: int = Field(default=42, ge=0, le=4_294_967_295)
+
+    @field_validator("target_column")
+    @classmethod
+    def validate_baseline_target(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("target_column must not be blank")
+        return value
+
+    @field_validator("feature_columns")
+    @classmethod
+    def validate_baseline_features(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return value
+        if any(not name.strip() or len(name) > 255 for name in value):
+            raise ValueError("feature column names must be non-empty and at most 255 characters")
+        if len(value) != len(set(value)):
+            raise ValueError("feature_columns must not contain duplicates")
+        return value

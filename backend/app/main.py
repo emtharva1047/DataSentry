@@ -14,6 +14,7 @@ from .schemas import (
     DatasetRead,
     DatasetSchemaValidationRequest,
     MLReadinessRequest,
+    MLBaselineRequest,
 )
 from .services.dataset_ingestion import (
     DatasetTooLargeError,
@@ -39,6 +40,11 @@ from .services.dataset_cleaning import (
     preview_cleaning,
 )
 from .services.dataset_comparison import compare_dataset_version_quality
+from .services.dataset_modeling import (
+    DatasetModelingFileUnavailableError,
+    DatasetModelingRequestError,
+    train_baseline_model,
+)
 from .services.dataset_readiness import (
     DatasetReadinessFileUnavailableError,
     DatasetReadinessRequestError,
@@ -277,6 +283,25 @@ def post_dataset_ml_readiness(
     except DatasetReadinessRequestError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except DatasetReadinessFileUnavailableError as exc:
+        raise HTTPException(status_code=410, detail=str(exc)) from exc
+
+
+
+@app.post("/api/datasets/{dataset_id}/baseline-model", tags=["ml-modeling"])
+def post_dataset_baseline_model(
+    dataset_id: int,
+    request: MLBaselineRequest,
+    db: Session = Depends(get_db),
+) -> dict:
+    """Train and evaluate one seeded baseline with preprocessing fit on training rows only."""
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(status_code=404, detail="Dataset not found.")
+    try:
+        return train_baseline_model(dataset, request.model_dump())
+    except DatasetModelingRequestError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except DatasetModelingFileUnavailableError as exc:
         raise HTTPException(status_code=410, detail=str(exc)) from exc
 
 

@@ -507,6 +507,6 @@ def assess_ml_readiness(dataset: Dataset, request: dict[str, Any]) -> dict[str, 
             "Repeated feature vectors can cross random train/test partitions; group-aware splitting may be preferable when repeated entities are present.",
             "Feature redundancy uses exact co-observed agreement and pairwise Pearson correlation for numeric-like columns; only the first 20 eligible numeric features are assessed.",
             "The endpoint does not fit a model, impute values, encode categories, select features, or modify the source dataset.",
-            "Baseline classifier and regressor pipelines with train-only preprocessing remain a separate implementation milestone.",
+            "Baseline classifier and regressor pipelines are available separately at POST /api/datasets/{dataset_id}/baseline-model; dashboard integration and repeated-seed experiments remain outstanding.",
         ],
     }

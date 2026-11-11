@@ -38,7 +38,8 @@ The profile endpoint also computes on demand and does not persist profile snapsh
 - [x] Numeric summary, shared-bin histogram, and pairwise Pearson correlation comparison for original and derived versions (up to 20 numeric columns).
 - [ ] Live browser-to-FastAPI workflow verification.
 - [x] Read-only ML-readiness diagnostics for target completeness, class imbalance, regression target parseability, suspicious target associations, duplicate feature-vector split risks, feature redundancy, feature missingness, and dataset-size caveats.
-- [ ] Dashboard integration and leakage-safe classifier/regressor baselines.
+- [x] Backend baseline classifier/regressor endpoint with seeded holdout split, train-only type inference/imputation/scaling/encoding, and task-appropriate metrics.
+- [ ] Dashboard integration, repeated-seed mean/standard-deviation evaluation, and the clean untouched-test corruption experiment.
 
 The anomaly dashboard calls `POST /api/datasets/{id}/anomalies` for the selected dataset. Users can select one or more detectors and set the IQR multiplier, modified-Z threshold, Isolation Forest contamination, random seed, and estimator count. The current dashboard scans all eligible numeric-like columns and displays per-detector counts, bounded row evidence, eligibility reasons, and method notes. API-only column filtering is not exposed in the UI. Results are review flags; the uploaded CSV and DQS remain unchanged. Controlled synthetic-corruption evaluation is still required before M6 can be closed.
 

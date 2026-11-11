@@ -18,7 +18,7 @@ DataSentry is a research-oriented full-stack application that profiles tabular d
 - Interactive quality report viewer with overall DQS, component numerators/denominators, severity counts, issue evidence, and detector notes.
 - Interactive numerical anomaly review with IQR, modified robust Z-score, and Isolation Forest selection; configurable thresholds, contamination, random seed, and tree count; numeric-column eligibility diagnostics; flagged-row evidence; and source fingerprint display.
 - Interactive safe-cleaning workflow with advisory recommendations, explicit operation selection, read-only before/after row previews, a review acknowledgement before apply, immutable version history, and DQS/numeric-profile comparison.
-- Read-only ML-readiness diagnostics for target completeness, classification imbalance, suspicious target copies/associations, duplicate feature-vector split risks, feature redundancy, missing feature values, and dataset-size caveats.
+- Read-only ML-readiness diagnostics for target completeness, classification imbalance, suspicious target copies/associations, duplicate feature-vector split risks, feature redundancy, missing feature values, and dataset-size caveats; seeded logistic-regression and Ridge baseline evaluation with train-only preprocessing.
 
 Anomaly review is available beside the quality check for each dataset. The dashboard sends detector selections and validated parameters to `POST /api/datasets/{id}/anomalies`, then displays per-detector flagged counts, row references, numeric eligibility, and method notes. The scan uses all eligible numeric-like columns; column-level filtering remains API-only. Anomaly findings are not included in DQS and never change source rows.
 
@@ -49,6 +49,7 @@ When a derived version is selected in the cleaning workspace, DataSentry recalcu
 - `GET /api/datasets/{id}/cleaning/versions` — list derived versions and their parent lineage.
 - `GET /api/datasets/{id}/cleaning/versions/{version_id}/quality-comparison` — recalculate original and selected version DQS and compare numeric summaries, shared-bin histograms, and defined Pearson correlation pairs.
 - `POST /api/datasets/{id}/ml-readiness` — deterministic target, class-balance, leakage-heuristic, duplicate-split, redundancy, and sample-size diagnostics; does not fit a model.
+- `POST /api/datasets/{id}/baseline-model` — fit a seeded logistic-regression classifier or Ridge regressor using a holdout split and preprocessing fitted only on training rows.
 - `GET /api/health` and `GET /api/overview` — service and database status.
 
 ### Explicit schema validation
@@ -122,6 +123,29 @@ Use base_version_id to branch from a prior immutable version; omit it or set it 
 Open the dataset library and choose **Review cleaning** for a dataset. Select the original upload or a previously created immutable version as the base. Recommendations are advisory; choose only operations justified by the dataset context. Generate a read-only preview, inspect row counts and bounded before/after cell evidence, acknowledge the preview, and then explicitly create a new version. The dashboard refreshes the version history and selects the new version as the next base. The original upload and prior versions are retained.
 
 The dashboard compares row counts, sampled cell changes, DQS components, numeric summaries, aligned histograms, and defined Pearson correlation pairs for up to 20 numeric columns. Categorical frequency distributions are not yet compared, and live browser-to-FastAPI workflow verification remains pending. Lowercase normalization remains high-risk and is not selected by default.
+
+
+## Baseline model evaluation
+
+Submit a JSON body to `POST /api/datasets/{id}/baseline-model`:
+
+```json
+{
+  "target_column": "outcome",
+  "task_type": "classification",
+  "feature_columns": ["age", "region", "income"],
+  "test_size": 0.25,
+  "random_state": 42
+}
+```
+
+`feature_columns` is optional; when omitted, every column except the target is selected. The target is required and must not also appear as a feature. The test fraction must be greater than 0.1 and less than 0.5. At least 10 rows with usable target values are required. Classification requires at least two classes, at least two observations per class, and enough rows to place every class in both partitions. Regression excludes missing, non-numeric, and non-finite target labels before splitting.
+
+The classification baseline is class-weighted logistic regression. The regression baseline is Ridge regression. Numeric feature types are inferred from the training partition only using at least two finite values and 80% parseability among observed training values. The train/test split is created before this inference. Median imputation and standard scaling for numeric features, and constant missing-value imputation plus one-hot encoding for categorical features, are fitted inside a scikit-learn Pipeline using training rows only. Unseen test categories are ignored by the fitted encoder.
+
+Classification metrics include accuracy, balanced accuracy, macro precision/recall/F1, confusion counts, and binary ROC AUC when applicable. Regression metrics include MAE, RMSE, and R². The response records split seed, test fraction, train/test counts, inferred feature types, preprocessing fit scope, runtime, source SHA-256, and pandas/NumPy/scikit-learn versions. No model artifact is persisted and the source CSV is never modified.
+
+This is a single seeded holdout baseline, not model selection or a performance guarantee. Random row splitting does not prevent duplicate entities or feature vectors crossing partitions; inspect the ML-readiness report and use group-aware splitting when appropriate. Small datasets and single-split metrics have high uncertainty. Repeat with at least three seeds and report mean and standard deviation before making research claims. The untouched-test-set corruption experiment remains a separate research milestone.
 
 ## Local setup
 
