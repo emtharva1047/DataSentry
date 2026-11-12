@@ -10,7 +10,7 @@
 - [ ] M6 — Anomaly detection: read-only IQR, modified robust Z-score, and seeded Isolation Forest APIs plus configurable dashboard controls and evidence views are implemented; controlled ground-truth evaluation remains.
 - [ ] M7 — Safe cleaning: advisory recommendations, read-only preview, explicit apply, immutable versions, dashboard operation selection, bounded before/after row evidence, review acknowledgement, version history, DQS comparison, numeric summary deltas, aligned histograms, and Pearson correlation deltas are implemented; live browser workflow verification remains.
 - [ ] M8 — ML readiness: deterministic target, imbalance, leakage, duplicate-split, redundancy, and size diagnostics are implemented at `POST /api/datasets/{id}/ml-readiness`. Seeded logistic-regression classification and Ridge regression baselines are implemented at `POST /api/datasets/{id}/baseline-model` with train-only preprocessing and holdout metrics; dashboard integration, repeated-seed evaluation, and the untouched-test corruption experiment remain.
-- [ ] M9 — Research lab: seeded corruption, ground truth, metrics, and runtime benchmarks.
+- [ ] M9 — Research lab: deterministic in-memory corruption for five defect types, exact cell/row ground-truth labels, binary detector metrics, and three-or-more-seed mean/sample-standard-deviation aggregation are implemented; detector integration, runtime/memory benchmarks, downstream clean-test evaluation, and research reporting remain.
 - [ ] M10 — Hardening: tests, documentation, research report, demo, and deployment.
 
 ## Definition of done

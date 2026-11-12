@@ -4,7 +4,7 @@
 
 DataSentry is a research-oriented full-stack application that profiles tabular datasets, detects quality issues using statistical, rule-based, and machine-learning techniques, recommends transparent cleaning actions, and evaluates how data defects affect downstream ML models.
 
-> **Status:** The FastAPI backend supports validated CSV ingestion, SQLite metadata persistence, statistical profiling, explainable quality assessment, explicit schema/domain validation, anomaly detection, safe cleaning, immutable versions, and DQS/numeric-profile comparison. The Next.js dashboard integrates quality reports, anomaly review, cleaning previews, explicit apply, version history, and before/after comparisons. Live browser-to-API verification, baseline model training, and controlled research evaluation remain in progress. A read-only ML-readiness diagnostic endpoint is implemented.
+> **Status:** The FastAPI backend supports validated CSV ingestion, SQLite metadata persistence, statistical profiling, explainable quality assessment, explicit schema/domain validation, anomaly detection, safe cleaning, immutable versions, and DQS/numeric-profile comparison. The Next.js dashboard integrates quality reports, anomaly review, cleaning previews, explicit apply, version history, and before/after comparisons. Live browser-to-API verification, baseline model dashboard integration, repeated-seed model evaluation, and controlled research evaluation remain in progress. ML-readiness diagnostics and seeded baseline model APIs are implemented. Deterministic synthetic-corruption and metric-aggregation research primitives are implemented; detector-specific evaluation remains in progress.
 
 ## Current capabilities
 
@@ -19,6 +19,7 @@ DataSentry is a research-oriented full-stack application that profiles tabular d
 - Interactive numerical anomaly review with IQR, modified robust Z-score, and Isolation Forest selection; configurable thresholds, contamination, random seed, and tree count; numeric-column eligibility diagnostics; flagged-row evidence; and source fingerprint display.
 - Interactive safe-cleaning workflow with advisory recommendations, explicit operation selection, read-only before/after row previews, a review acknowledgement before apply, immutable version history, and DQS/numeric-profile comparison.
 - Read-only ML-readiness diagnostics for target completeness, classification imbalance, suspicious target copies/associations, duplicate feature-vector split risks, feature redundancy, missing feature values, and dataset-size caveats; seeded logistic-regression and Ridge baseline evaluation with train-only preprocessing.
+- Internal deterministic synthetic-corruption utilities for missingness, exact duplicate insertion, categorical inconsistency, invalid numeric values, and numerical anomalies, with exact cell/row labels; binary detector metrics and a three-or-more-seed mean/sample-standard-deviation aggregator.
 
 Anomaly review is available beside the quality check for each dataset. The dashboard sends detector selections and validated parameters to `POST /api/datasets/{id}/anomalies`, then displays per-detector flagged counts, row references, numeric eligibility, and method notes. The scan uses all eligible numeric-like columns; column-level filtering remains API-only. Anomaly findings are not included in DQS and never change source rows.
 
@@ -146,6 +147,19 @@ The classification baseline is class-weighted logistic regression. The regressio
 Classification metrics include accuracy, balanced accuracy, macro precision/recall/F1, confusion counts, and binary ROC AUC when applicable. Regression metrics include MAE, RMSE, and R². The response records split seed, test fraction, train/test counts, inferred feature types, preprocessing fit scope, runtime, source SHA-256, and pandas/NumPy/scikit-learn versions. No model artifact is persisted and the source CSV is never modified.
 
 This is a single seeded holdout baseline, not model selection or a performance guarantee. Random row splitting does not prevent duplicate entities or feature vectors crossing partitions; inspect the ML-readiness report and use group-aware splitting when appropriate. Small datasets and single-split metrics have high uncertainty. Repeat with at least three seeds and report mean and standard deviation before making research claims. The untouched-test-set corruption experiment remains a separate research milestone.
+
+## Controlled research utilities
+
+The backend research module app.services.dataset_research provides in-memory experiment construction; these are not public API endpoints and do not persist corrupted datasets.
+
+- inject_synthetic_corruption(frame, rate, seed, defects) returns a separate corrupted DataFrame and exact ground-truth labels for missing cells, inserted duplicate rows, categorical case/whitespace variants, invalid numeric tokens, and injected numerical extremes.
+- The rate is applied to the currently eligible cells for cell-level defects and eligible source rows for duplicate insertion. Counts are rounded up to at least one when candidates exist. The seed is a 32-bit unsigned integer.
+- Ground truth distinguishes zero-based positions in the returned corrupted frame from one-based data-row numbers. Duplicate labels identify only the newly appended row and retain its source-row reference. Cell labels identify each injected cell and defect type.
+- Ineligible defect types are reported as skipped with a reason; the generator does not invent labels. The input DataFrame is never modified.
+- evaluate_binary_detector returns precision, recall, F1, accuracy, and TP/FP/TN/FN counts. Undefined precision/recall/F1 denominators use an explicit zero convention.
+- aggregate_seed_metrics requires at least three distinct seeds and identical finite numeric metric names across runs. It reports the arithmetic mean and sample standard deviation (ddof=1).
+
+These are experiment primitives, not experimental results. Detector-specific predictions, runtime/memory benchmarks, repeated-seed detector runs, and the clean untouched-test downstream ML experiment remain to be executed. Synthetic corruption rates are controlled settings, not estimates of real-world defect prevalence.
 
 ## Local setup
 
