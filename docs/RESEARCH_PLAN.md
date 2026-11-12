@@ -26,6 +26,28 @@ Create corrupted copies from a clean reference dataset using fixed random seeds.
 
 Test example corruption proportions of 1%, 5%, and 10% where meaningful. These are experimental settings, not assumptions about real-world defect rates. Save row- and cell-level ground-truth labels.
 
+## Implemented synthetic-corruption and ground-truth contract
+
+The in-memory implementation is backend/app/services/dataset_research.py. It exposes inject_synthetic_corruption(frame, rate, seed, defects), evaluate_binary_detector(ground_truth, predictions), and aggregate_seed_metrics(runs). These functions are research primitives; no public API route, persisted experiment artifact, or detector result is claimed by this increment.
+
+The generator accepts a non-empty DataFrame with unique, non-empty string column names, a finite rate in (0, 0.5], a 32-bit unsigned seed, and one or more supported defect names. A NumPy default_rng(seed) controls selection. For each cell-level defect, the requested count is the ceiling of the rate multiplied by the currently eligible cells, with a minimum of one when candidates exist. Duplicate insertion applies the same rule to eligible source rows. Actual eligible counts and skipped reasons are returned in the ground truth.
+
+Supported defects and injection rules:
+
+- **Missingness:** replace selected observed cells with pandas missing values.
+- **Duplicates:** append exact copies of selected source rows. Source rows are reserved before cell corruption so the inserted record is an exact duplicate. Only the appended row is labeled as the duplicate, matching first-occurrence duplicate detectors.
+- **Categorical inconsistency:** wrap selected non-empty string values in whitespace and swap their case. The original category is retained in the untouched input frame.
+- **Invalid values:** replace selected finite values in inferred numeric-like columns with a collision-checked non-numeric sentinel.
+- **Numerical anomalies:** replace selected finite numeric cells with a finite value above the original column maximum, where representable. Columns with insufficient numeric evidence or no representable higher finite value are skipped.
+
+Numeric columns require at least four finite values and 80% finite parseability among non-missing values. Categorical candidates are non-numeric columns containing non-empty strings. Defect selections do not overlap at the same cell; duplicate source rows are not modified by cell corruptions. The input DataFrame is copied and never mutated. The returned frame is in memory only.
+
+Ground-truth schema version 1 contains source/corrupted shapes, seed, rate, selected defects, inferred eligible columns, per-defect status/count/records, cell labels, duplicate-row records, and grouped row labels. Every cell label has a zero-based row position in the returned corrupted frame, a one-based data-row number (CSV header excluded), a column name, and a defect type. Duplicate records additionally include both inserted and source row positions. These labels describe only defects injected by this generator; pre-existing defects in the reference frame are not labeled.
+
+evaluate_binary_detector computes TP, FP, TN, FN, precision, recall, F1, and accuracy for equal-length non-empty binary sequences. Undefined precision, recall, or F1 uses zero and is explicitly reported. aggregate_seed_metrics requires at least three distinct unsigned seeds, identical metric names, and finite numeric values. It reports the arithmetic mean and sample standard deviation (ddof=1), retaining per-seed values. It does not silently drop failed or missing runs.
+
+The generator has not yet been connected to IQR, robust-Z, Isolation Forest, rule-based detectors, or downstream model experiments. No precision/recall/F1 values, runtimes, memory measurements, or model improvements are claimed until those experiments are run. Synthetic rates are controlled experimental settings and must not be interpreted as real-world defect prevalence.
+
 ## Methods
 
 - Rule checks for missingness and exact duplicate rows.

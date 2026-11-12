@@ -48,11 +48,15 @@ The cleaning API exposes GET /api/datasets/{id}/cleaning/recommendations, POST /
 The ML-readiness API is `POST /api/datasets/{id}/ml-readiness`. It requires a target column and task type (`classification` or `regression`); feature columns are optional and default to all columns except the target. It reports target completeness, class distribution/imbalance or regression target numeric parseability, feature missingness, duplicate feature vectors with target excluded, near-exact target copies, near-perfect numeric target associations for regression, exact duplicate feature columns, high-correlation feature pairs, and row/feature-count caveats. Correlation analysis is capped at 20 eligible numeric features and evidence is bounded. The status is `blocked`, `review_required`, or `ready_for_baseline`; it is a heuristic review aid, not a model-quality guarantee. The endpoint is read-only and does not train a model. Dashboard integration and baseline pipelines remain pending.
 
 ## Week 4 — Research evaluation and delivery (Days 22–30)
-- [ ] Seeded synthetic corruption and ground-truth defect labels.
-- [ ] Precision, recall, F1, runtime, and downstream ML comparisons.
-- [ ] Repeat stochastic experiments and report mean/standard deviation.
+- [x] In-memory seeded corruption primitives for missingness, exact duplicate insertion, categorical case/whitespace inconsistency, invalid numeric values, and numerical extremes, with exact cell/row ground-truth labels.
+- [x] Binary detector precision/recall/F1/accuracy and TP/FP/TN/FN helper with an explicit zero-division convention.
+- [x] Repeated-seed aggregation helper requiring at least three distinct seeds and reporting arithmetic mean plus sample standard deviation (ddof=1).
+- [ ] Connect applicable detectors to each defect type and measure precision, recall, F1, confusion counts, runtime, and memory where feasible.
+- [ ] Execute at least three seeded detector runs and report measured mean/standard deviation.
+- [ ] Run downstream clean/corrupted/cleaned-corrupted training comparisons with an untouched clean test set and training-only preprocessing.
 - [ ] UI integration, automated tests, research report, demo script, known limitations, and reproducibility instructions.
 
+The implemented utilities live in backend/app/services/dataset_research.py. They are in-memory research primitives, not a public endpoint or a completed experiment. The corruption generator returns a new DataFrame and exact labels; it never modifies or persists the uploaded source. Cell labels use zero-based corrupted-frame row positions plus one-based data-row numbers. Duplicate labels mark only the inserted duplicate and retain the source-row reference. Detector-specific runs, runtime/memory measurements, and downstream model experiments remain outstanding.
 ## Scope cuts
 
 Keep CSV only, SQLite, one classifier and one regressor. Defer role-based access, cloud-scale processing, Excel/Parquet, and advanced PDF export if needed.
