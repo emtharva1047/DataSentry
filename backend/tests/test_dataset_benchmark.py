@@ -105,3 +105,49 @@ def test_benchmark_keeps_ineligible_detector_runs_visible_without_aggregating():
 def test_benchmark_rejects_invalid_configuration(kwargs, message):
     with pytest.raises(ValueError, match=message):
         run_synthetic_detector_benchmark(_reference_frame(), **kwargs)
+
+def test_benchmark_reports_clean_reference_preflight():
+    report = run_synthetic_detector_benchmark(
+        _reference_frame(),
+        rates=(0.05,),
+        seeds=(42, 123, 2026),
+        defects=("missingness",),
+    )
+
+    preflight = report["reference_preflight"]
+    assert preflight["missing_cells"] == 0
+    assert preflight["duplicate_rows"] == 0
+    assert preflight["categorical_inconsistency_cells"] == 0
+    assert preflight["invalid_numeric_cells"] == 0
+    assert preflight["numeric_columns"] == ["amount", "units"]
+    assert preflight["statistical_outliers_rejected"] is False
+
+
+@pytest.mark.parametrize(
+    ("defect", "expected_finding"),
+    [
+        ("missingness", "missing_cells=1"),
+        ("duplicates", "duplicate_rows=1"),
+        ("categorical_inconsistency", "categorical_inconsistency_cells"),
+        ("invalid_values", "invalid_numeric_cells=1"),
+    ],
+)
+def test_benchmark_rejects_preexisting_deterministic_defects(defect, expected_finding):
+    frame = _reference_frame()
+    if defect == "missingness":
+        frame.loc[0, "amount"] = None
+    elif defect == "duplicates":
+        frame.loc[1] = frame.loc[0]
+    elif defect == "categorical_inconsistency":
+        frame.loc[0, "city"] = " NORTH "
+    elif defect == "invalid_values":
+        frame.loc[0, "amount"] = "not-a-number"
+
+    with pytest.raises(ValueError, match=expected_finding):
+        run_synthetic_detector_benchmark(
+            frame,
+            rates=(0.05,),
+            seeds=(42, 123, 2026),
+            defects=("missingness",),
+        )
+
