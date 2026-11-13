@@ -90,7 +90,7 @@ The reproducible runner is `backend/app/services/dataset_benchmark.py`, with a l
 python -m scripts.run_detector_benchmark reference.csv --rates 0.01,0.05,0.10 --seeds 42,123,2026 --output benchmark-report.json
 ```
 
-The source CSV is read-only. The CLI records the source filename, SHA-256, byte size, shape, and pandas/NumPy/scikit-learn versions. Each trial injects one defect into a fresh in-memory copy of the clean reference frame.
+The source CSV is read-only. The CLI records the source filename, SHA-256, byte size, shape, Python, pandas, NumPy, and scikit-learn versions. Before running, a clean-reference preflight rejects pre-existing missing cells, exact duplicate rows, detected categorical whitespace/case variants, and invalid values in inferred numeric-like columns. Statistical outliers are not rejected because unusual does not mean invalid; if a detector flags a baseline outlier, it counts as a false positive against injected-only labels. Each trial injects one defect into a fresh in-memory copy of the clean reference frame.
 
 | Injected defect | Applicable detector | Evaluation unit |
 |---|---|---|
