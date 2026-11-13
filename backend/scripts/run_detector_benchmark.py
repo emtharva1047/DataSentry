@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import platform
 from pathlib import Path
 import sys
 
@@ -81,6 +82,7 @@ def main() -> int:
             "source_sha256": hashlib.sha256(source_bytes).hexdigest(),
             "source_size_bytes": len(source_bytes),
             "source_shape": {"rows": int(frame.shape[0]), "columns": int(frame.shape[1])},
+            "python_version": platform.python_version(),
             "pandas_version": pd.__version__,
             "numpy_version": np.__version__,
             "scikit_learn_version": sklearn.__version__,
