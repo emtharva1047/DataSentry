@@ -16,6 +16,7 @@ import pandas as pd
 from . import dataset_anomaly
 from .dataset_research import (
     SUPPORTED_DEFECTS,
+    _infer_numeric_columns,
     aggregate_seed_metrics,
     evaluate_binary_detector,
     inject_synthetic_corruption,
@@ -199,6 +200,56 @@ def _numeric_parseability_predictions(
         observed = raw.notna().to_numpy(dtype=bool)
         mask[:, positions[name]] = observed & ~np.isfinite(values)
     return mask.reshape(-1)
+
+
+def _clean_reference_preflight(frame: pd.DataFrame) -> dict[str, Any]:
+    """Reject deterministic pre-existing defects that would contaminate injected labels.
+
+    Statistical outliers are deliberately not rejected: unusual observations are
+    not automatically invalid and detector flags on the clean reference count as
+    false positives relative to the injected-defect ground truth.
+    """
+    numeric_columns, _ = _infer_numeric_columns(frame)
+    categorical_columns = [
+        name
+        for name in frame.columns
+        if name not in numeric_columns
+        and any(
+            isinstance(value, str) and bool(value)
+            for value in frame[name].dropna().tolist()
+        )
+    ]
+    categorical_predictions = _categorical_consistency_predictions(
+        frame, categorical_columns
+    )
+    invalid_predictions = _numeric_parseability_predictions(frame, numeric_columns)
+    findings = {
+        "missing_cells": int(frame.isna().sum().sum()),
+        "duplicate_rows": int(frame.duplicated(keep="first").sum()),
+        "categorical_inconsistency_cells": int(np.count_nonzero(categorical_predictions)),
+        "invalid_numeric_cells": int(np.count_nonzero(invalid_predictions)),
+        "numeric_columns": list(numeric_columns),
+        "categorical_columns": list(categorical_columns),
+        "statistical_outliers_rejected": False,
+    }
+    blockers = {
+        name: findings[name]
+        for name in (
+            "missing_cells",
+            "duplicate_rows",
+            "categorical_inconsistency_cells",
+            "invalid_numeric_cells",
+        )
+        if findings[name] > 0
+    }
+    if blockers:
+        details = ", ".join(f"{name}={count}" for name, count in blockers.items())
+        raise ValueError(
+            "clean reference preflight failed: "
+            + details
+            + "; resolve these deterministic defects before benchmarking"
+        )
+    return findings
 
 
 def _row_predictions(row_count: int, indexes: set[int]) -> np.ndarray:
@@ -397,6 +448,7 @@ def run_synthetic_detector_benchmark(
         iqr_multiplier,
         robust_z_threshold,
     )
+    reference_preflight = _clean_reference_preflight(frame)
     source = frame.copy(deep=True)
     experiments: dict[tuple[float, str, str], dict[str, Any]] = {}
     for rate in rates:
@@ -484,6 +536,7 @@ def run_synthetic_detector_benchmark(
     return {
         "schema_version": 1,
         "source_shape": {"rows": int(frame.shape[0]), "columns": int(frame.shape[1])},
+        "reference_preflight": reference_preflight,
         "configuration": {
             "rates": list(rates),
             "seeds": list(seeds),
@@ -503,6 +556,8 @@ def run_synthetic_detector_benchmark(
             "Timing covers detector prediction only and excludes corruption generation and metric calculation.",
             "Memory is the Python-traced peak allocation delta; native NumPy and scikit-learn allocations may not be fully represented.",
             "Every requested seed must complete for an aggregate to be reported; skipped runs are retained and never silently dropped.",
+            "The clean-reference preflight rejects pre-existing missing cells, exact duplicate rows, detected categorical whitespace/case variants, and invalid values in inferred numeric-like columns.",
+            "Statistical outliers are not rejected by preflight; if a detector flags them, they count as false positives against injected-only labels.",
             "The source DataFrame is not modified and no corrupted file or report is persisted.",
             "Synthetic corruption rates are controlled settings and are not estimates of real-world defect prevalence.",
         ],
