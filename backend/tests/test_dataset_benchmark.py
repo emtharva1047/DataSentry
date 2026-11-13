@@ -72,7 +72,7 @@ def test_benchmark_connects_all_defects_to_applicable_detectors_and_three_seeds(
 
 
 def test_benchmark_keeps_ineligible_detector_runs_visible_without_aggregating():
-    frame = pd.DataFrame({"category": ["north", "south", "east", "west"] * 10})
+    frame = pd.DataFrame({"category": [f"category-{index}" for index in range(40)]})
 
     report = run_synthetic_detector_benchmark(
         frame,
@@ -141,6 +141,7 @@ def test_benchmark_rejects_preexisting_deterministic_defects(defect, expected_fi
     elif defect == "categorical_inconsistency":
         frame.loc[0, "city"] = " NORTH "
     elif defect == "invalid_values":
+        frame["amount"] = frame["amount"].astype(object)
         frame.loc[0, "amount"] = "not-a-number"
 
     with pytest.raises(ValueError, match=expected_finding):
