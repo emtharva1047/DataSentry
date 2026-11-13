@@ -46,7 +46,7 @@ Ground-truth schema version 1 contains source/corrupted shapes, seed, rate, sele
 
 evaluate_binary_detector computes TP, FP, TN, FN, precision, recall, F1, and accuracy for equal-length non-empty binary sequences. Undefined precision, recall, or F1 uses zero and is explicitly reported. aggregate_seed_metrics requires at least three distinct unsigned seeds, identical metric names, and finite numeric values. It reports the arithmetic mean and sample standard deviation (ddof=1), retaining per-seed values. It does not silently drop failed or missing runs.
 
-The generator has not yet been connected to IQR, robust-Z, Isolation Forest, rule-based detectors, or downstream model experiments. No precision/recall/F1 values, runtimes, memory measurements, or model improvements are claimed until those experiments are run. Synthetic rates are controlled experimental settings and must not be interpreted as real-world defect prevalence.
+The generator is now connected to a defect-specific benchmark runner in backend/app/services/dataset_benchmark.py. Missingness, exact duplicates, categorical inconsistency, and invalid numeric values use their applicable rule detectors; numerical anomalies are evaluated with the production IQR, modified robust-Z, and Isolation Forest implementations. Cell-level metrics are used for missingness/category/type defects and row-level metrics for duplicates/numerical anomalies. The runner records per-seed confusion counts, precision/recall/F1/accuracy, prediction runtime, and Python tracemalloc peak-allocation delta. It aggregates arithmetic means and sample standard deviations only when every requested seed completes. The CLI is backend/scripts/run_detector_benchmark.py. The runner is implemented but no benchmark results are claimed until it is executed against a documented clean reference dataset. The memory proxy does not capture every native allocation. Synthetic rates are controlled experimental settings and must not be interpreted as real-world defect prevalence.
 
 ## Methods
 
@@ -81,6 +81,28 @@ The current anomaly endpoint is `POST /api/datasets/{id}/anomalies`. Record dete
 The backend exposes advisory recommendations, a read-only preview, explicit apply, and version listing. Supported operations are exact duplicate removal (keep first), numeric median imputation, categorical mode imputation, whitespace trimming, and explicitly requested lower-case normalization. Recommendations never execute automatically. Preview returns bounded one-based row evidence and does not write a file. Apply creates a new generated CSV and immutable version record; the original upload and prior versions remain unchanged. Each version records its parent, operation manifest, row/column counts, file size, and SHA-256. A version may be used as the base for a subsequent version, preserving lineage.
 
 Imputation is not universally safe: median can compress numeric variance, mode can overrepresent a category, and lower-case normalization can merge semantically distinct labels. These choices require review and must be described in experiment reports. A no-op operation is not persisted. The dashboard now supports selecting recommendations, choosing an original or derived base version, previewing bounded before/after row and cell changes, acknowledging the preview, explicitly applying operations, and reviewing immutable version lineage. When a derived version is selected, the API recalculates the original and derived CSV with the same DQS implementation and reports overall and component score deltas, applicability, issue/severity counts, shape changes, and source fingerprints. The dashboard displays these results and now also compares numeric summaries (min, max, mean, median, standard deviation, and quartiles), 10-bin histograms with shared per-column edges for columns numeric in both versions, and pairwise Pearson correlation deltas when both correlations are defined. The comparison is capped at the first 20 numeric columns; categorical frequency distributions are not compared. Histogram counts are directly comparable only when the response marks the bins as shared. These descriptive changes do not establish causality or downstream model improvement. A positive DQS delta means improvement only under the defined rule-based score; it is not evidence of improved predictive performance. If component applicability changes, the active-weight denominator also changes and must be considered. Full numeric distribution/correlation comparisons and live browser-to-FastAPI verification remain pending.
+
+## Detector benchmark runner
+
+The reproducible runner is `backend/app/services/dataset_benchmark.py`, with a local CSV CLI at `backend/scripts/run_detector_benchmark.py`. From the backend directory:
+
+```powershell
+python -m scripts.run_detector_benchmark reference.csv --rates 0.01,0.05,0.10 --seeds 42,123,2026 --output benchmark-report.json
+```
+
+The source CSV is read-only. The CLI records the source filename, SHA-256, byte size, shape, Python, pandas, NumPy, and scikit-learn versions. Before running, a clean-reference preflight rejects pre-existing missing cells, exact duplicate rows, detected categorical whitespace/case variants, and invalid values in inferred numeric-like columns. Statistical outliers are not rejected because unusual does not mean invalid; if a detector flags a baseline outlier, it counts as a false positive against injected-only labels. Each trial injects one defect into a fresh in-memory copy of the clean reference frame.
+
+| Injected defect | Applicable detector | Evaluation unit |
+|---|---|---|
+| Missingness | Missing-value rule | Cell |
+| Exact duplicates | Exact duplicate-row rule | Row |
+| Categorical inconsistency | Whitespace/casefold-variant rule | Cell |
+| Invalid numeric values | Finite numeric parseability rule using numeric columns inferred from the clean reference | Cell |
+| Numerical anomalies | Production IQR, modified robust Z-score, and Isolation Forest | Row |
+
+For every detector/rate pair, retain per-seed TP/FP/TN/FN, precision, recall, F1, accuracy, runtime, and Python tracemalloc peak-allocation delta. Runtime covers prediction only, excluding corruption generation and metric calculation. The memory value is a Python allocation proxy and does not fully include native NumPy/scikit-learn allocations. At least three distinct seeds are required. If any requested seed is skipped or incomplete for a detector, no aggregate is emitted for that detector/rate; the skipped reason remains in the report. Aggregates use arithmetic mean and sample standard deviation (ddof=1).
+
+The numerical adapters deliberately reuse the same internal IQR, robust-Z, and Isolation Forest functions as the production anomaly endpoint. Rule-detector evaluation is controlled by the clean reference schema and should not be interpreted as an estimate of performance on unknown real-world schemas. The categorical rule may flag legitimate case variants. Duplicate metrics are row-level and mark inserted duplicate occurrences after the first. The runner is implemented and covered by automated tests; actual benchmark results must be generated from a documented reference dataset before reporting detector performance.
 
 ## Evaluation metrics
 

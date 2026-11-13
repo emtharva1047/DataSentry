@@ -4,7 +4,7 @@
 
 DataSentry is a research-oriented full-stack application that profiles tabular datasets, detects quality issues using statistical, rule-based, and machine-learning techniques, recommends transparent cleaning actions, and evaluates how data defects affect downstream ML models.
 
-> **Status:** The FastAPI backend supports validated CSV ingestion, SQLite metadata persistence, statistical profiling, explainable quality assessment, explicit schema/domain validation, anomaly detection, safe cleaning, immutable versions, and DQS/numeric-profile comparison. The Next.js dashboard integrates quality reports, anomaly review, cleaning previews, explicit apply, version history, and before/after comparisons. Live browser-to-API verification, baseline model dashboard integration, repeated-seed model evaluation, and controlled research evaluation remain in progress. ML-readiness diagnostics and seeded baseline model APIs are implemented. Deterministic synthetic-corruption and metric-aggregation research primitives are implemented; detector-specific evaluation remains in progress.
+> **Status:** The FastAPI backend supports validated CSV ingestion, SQLite metadata persistence, statistical profiling, explainable quality assessment, explicit schema/domain validation, anomaly detection, safe cleaning, immutable versions, and DQS/numeric-profile comparison. The Next.js dashboard integrates quality reports, anomaly review, cleaning previews, explicit apply, version history, and before/after comparisons. Live browser-to-API verification, ML-readiness/baseline-model dashboard integration, repeated-seed downstream model evaluation, and controlled research results remain in progress. ML-readiness diagnostics and seeded baseline model APIs are implemented. Deterministic synthetic corruption, exact ground truth, and a defect-specific detector benchmark runner/CLI are implemented; benchmark execution and downstream clean-test evaluation remain pending.
 
 ## Current capabilities
 
@@ -19,7 +19,7 @@ DataSentry is a research-oriented full-stack application that profiles tabular d
 - Interactive numerical anomaly review with IQR, modified robust Z-score, and Isolation Forest selection; configurable thresholds, contamination, random seed, and tree count; numeric-column eligibility diagnostics; flagged-row evidence; and source fingerprint display.
 - Interactive safe-cleaning workflow with advisory recommendations, explicit operation selection, read-only before/after row previews, a review acknowledgement before apply, immutable version history, and DQS/numeric-profile comparison.
 - Read-only ML-readiness diagnostics for target completeness, classification imbalance, suspicious target copies/associations, duplicate feature-vector split risks, feature redundancy, missing feature values, and dataset-size caveats; seeded logistic-regression and Ridge baseline evaluation with train-only preprocessing.
-- Internal deterministic synthetic-corruption utilities for missingness, exact duplicate insertion, categorical inconsistency, invalid numeric values, and numerical anomalies, with exact cell/row labels; binary detector metrics and a three-or-more-seed mean/sample-standard-deviation aggregator.
+- Internal deterministic synthetic-corruption utilities for five defect types with exact cell/row labels; a benchmark runner connects applicable rule detectors and the production IQR, robust-Z, and Isolation Forest implementations to defect-specific ground truth, reporting per-seed confusion counts, precision/recall/F1, runtime, Python-traced peak allocation, and three-or-more-seed mean/sample-standard-deviation aggregates.
 
 Anomaly review is available beside the quality check for each dataset. The dashboard sends detector selections and validated parameters to `POST /api/datasets/{id}/anomalies`, then displays per-detector flagged counts, row references, numeric eligibility, and method notes. The scan uses all eligible numeric-like columns; column-level filtering remains API-only. Anomaly findings are not included in DQS and never change source rows.
 
@@ -159,7 +159,17 @@ The backend research module app.services.dataset_research provides in-memory exp
 - evaluate_binary_detector returns precision, recall, F1, accuracy, and TP/FP/TN/FN counts. Undefined precision/recall/F1 denominators use an explicit zero convention.
 - aggregate_seed_metrics requires at least three distinct seeds and identical finite numeric metric names across runs. It reports the arithmetic mean and sample standard deviation (ddof=1).
 
-These are experiment primitives, not experimental results. Detector-specific predictions, runtime/memory benchmarks, repeated-seed detector runs, and the clean untouched-test downstream ML experiment remain to be executed. Synthetic corruption rates are controlled settings, not estimates of real-world defect prevalence.
+The detector runner is implemented but its benchmark has not yet been executed and no performance figures are claimed. It evaluates missingness, exact duplicates, categorical inconsistency, and invalid numeric values at cell/row-appropriate units, and evaluates IQR, robust Z-score, and Isolation Forest for numerical anomalies. Each requested seed must complete before an aggregate is emitted; skipped runs remain visible. Runtime covers detector prediction only. Memory uses Python tracemalloc and does not capture every native NumPy/scikit-learn allocation. Synthetic corruption rates are controlled settings, not estimates of real-world defect prevalence.
+
+## Detector benchmark runner
+
+The reproducible command-line runner is `backend/scripts/run_detector_benchmark.py`. From the backend directory, run:
+
+```powershell
+python -m scripts.run_detector_benchmark reference.csv --rates 0.01,0.05,0.10 --seeds 42,123,2026 --output benchmark-report.json
+```
+
+The input CSV is read-only. Before injecting defects, the runner rejects pre-existing missing cells, exact duplicate rows, detected categorical whitespace/case variants, and invalid values in inferred numeric-like columns. Statistical outliers are not rejected; if a detector flags them, they count as false positives against injected-only labels. The report records the filename, SHA-256, size, shape, Python, pandas, NumPy, and scikit-learn versions. Each rate/defect/detector experiment retains per-seed confusion counts and metrics; mean and sample standard deviation are emitted only when every requested seed completes. Missingness, categorical inconsistency, and invalid-value checks use cell-level labels; duplicate and numerical-anomaly checks use row-level labels. IQR, modified robust Z-score, and Isolation Forest reuse the production anomaly implementations. Python-traced memory is an allocation proxy and excludes some native-library memory. A report is not a substitute for the separate downstream experiment with an untouched clean test set.
 
 ## Local setup
 
