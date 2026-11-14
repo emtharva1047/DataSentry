@@ -98,10 +98,18 @@ def test_public_wine_reference_runs_detector_and_clean_test_experiments():
         assert experiment["aggregate"]["seed_count"] == 3
 
     downstream = report["downstream_classification"]
-    assert downstream["configuration"]["seeds"] == [42, 123, 2026]
-    assert downstream["configuration"]["selected_feature_columns"] == ["alcohol_band"]
-    assert downstream["paired_cleaned_minus_corrupted_macro_f1"]["seed_count"] == 3
-    assert all(
-        run["split"]["test_partition_untouched"]
-        for run in downstream["per_seed"]
-    )
+    assert downstream["corruption_rates"] == [0.05, 0.1, 0.2]
+    assert len(downstream["experiments"]) == 3
+    for experiment in downstream["experiments"]:
+        assert experiment["configuration"]["seeds"] == [42, 123, 2026]
+        assert experiment["configuration"]["selected_feature_columns"] == ["alcohol_band"]
+        assert experiment["paired_cleaned_minus_corrupted_macro_f1"]["seed_count"] == 3
+        assert all(
+            run["split"]["test_partition_untouched"]
+            for run in experiment["per_seed"]
+        )
+        for run in experiment["per_seed"]:
+            clean_metrics = run["conditions"]["clean"]["metrics"]
+            cleaned_metrics = run["conditions"]["cleaned_corrupted"]["metrics"]
+            for metric in ("accuracy", "balanced_accuracy", "macro_precision", "macro_recall", "macro_f1"):
+                assert clean_metrics[metric] == cleaned_metrics[metric]

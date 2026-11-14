@@ -50,6 +50,11 @@ def main() -> int:
         help="Isolation Forest estimator count.",
     )
     parser.add_argument(
+        "--ml-corruption-rates",
+        default="0.05,0.10,0.20",
+        help="Comma-separated training-only categorical corruption rates.",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         default=Path("research-results/uci-wine-reference-experiment.json"),
@@ -63,6 +68,7 @@ def main() -> int:
         rates=rates,
         seeds=seeds,
         n_estimators=args.n_estimators,
+        ml_corruption_rates=_csv_values(args.ml_corruption_rates, float),
     )
     rendered = json.dumps(report, indent=2, ensure_ascii=False, allow_nan=False)
     destination = args.output.expanduser().resolve()
@@ -86,22 +92,26 @@ def main() -> int:
             }
             for item in report["detector_benchmark"]["experiments"]
         ],
-        "downstream_classification": {
-            "aggregates": report["downstream_classification"]["aggregates"],
-            "paired_cleaned_minus_corrupted_macro_f1": report[
-                "downstream_classification"
-            ]["paired_cleaned_minus_corrupted_macro_f1"],
-            "per_seed_test_fingerprints": [
-                {
-                    "seed": item["seed"],
-                    "clean_test_sha256": item["split"]["clean_test_sha256"],
-                    "test_partition_untouched": item["split"][
-                        "test_partition_untouched"
-                    ],
-                }
-                for item in report["downstream_classification"]["per_seed"]
-            ],
-        },
+        "downstream_classification": [
+            {
+                "corruption_rate": experiment["configuration"]["corruption_rate"],
+                "aggregates": experiment["aggregates"],
+                "paired_cleaned_minus_corrupted_macro_f1": experiment[
+                    "paired_cleaned_minus_corrupted_macro_f1"
+                ],
+                "per_seed_test_fingerprints": [
+                    {
+                        "seed": item["seed"],
+                        "clean_test_sha256": item["split"]["clean_test_sha256"],
+                        "test_partition_untouched": item["split"][
+                            "test_partition_untouched"
+                        ],
+                    }
+                    for item in experiment["per_seed"]
+                ],
+            }
+            for experiment in report["downstream_classification"]["experiments"]
+        ],
     }
     print(json.dumps(summary, indent=2, ensure_ascii=False, allow_nan=False))
     return 0

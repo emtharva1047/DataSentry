@@ -120,13 +120,13 @@ The downstream classification experiment uses only the derived alcohol_band feat
 
 1. Create a stratified 75/25 split from the untouched clean reference for each seed.
 2. Infer feature types from the clean training partition only.
-3. Inject 5% categorical case/whitespace inconsistency into training features only; do not corrupt the target or test partition.
+3. Inject 5%, 10%, and 20% categorical case/whitespace inconsistency in separate training-only runs; do not corrupt the target or test partition.
 4. Compare three conditions on the same test rows within each seed: clean training, corrupted training, and cleaned-corrupted training.
-5. The cleaned-corrupted condition applies the production whitespace-trim and lowercase operations to training categorical features only.
+5. The cleaned-corrupted condition applies the production whitespace-trim and lowercase operations to training categorical features only. Because those operations exactly reverse the injected case/whitespace variants, clean and cleaned-corrupted predictive metrics are expected to match and are asserted as a control.
 6. Fit median imputation, scaling, and one-hot encoding inside a separate scikit-learn pipeline for each condition using that condition's training rows only.
 7. Retain accuracy, balanced accuracy, macro precision/recall/F1, confusion matrices, runtime, per-seed test fingerprints, and mean/sample-standard-deviation aggregates.
 
-The first downstream experiment is classification-only and uses the derived alcohol_band feature alone to isolate categorical inconsistency on one small public dataset. It does not yet cover regression or other training-only corruption types. A performance difference is descriptive evidence for this dataset, split protocol, corruption rate, and baseline; it is not a universal claim that cleaning always improves model quality.
+The first downstream experiment is classification-only and uses the derived alcohol_band feature alone to isolate categorical inconsistency at 5%, 10%, and 20% corruption rates on one small public dataset. It does not yet cover regression or other training-only corruption types. A performance difference is descriptive evidence for this dataset, split protocol, corruption rate, and baseline; it is not a universal claim that cleaning always improves model quality.
 
 The command is `python -m scripts.run_public_reference_experiments`. GitHub Actions workflow `.github/workflows/research-evaluation.yml` runs the full detector benchmark and downstream classification experiment and uploads the JSON report as `uci-wine-reference-experiment` for 30 days. No detector or model performance values should be reported until the workflow artifact has been inspected.
 

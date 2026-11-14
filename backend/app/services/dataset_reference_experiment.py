@@ -92,6 +92,7 @@ def run_wine_reference_experiment(
     rates: Sequence[float] = DEFAULT_BENCHMARK_RATES,
     seeds: Sequence[int] = DEFAULT_BENCHMARK_SEEDS,
     n_estimators: int = 100,
+    ml_corruption_rates: Sequence[float] = (0.05, 0.10, 0.20),
 ) -> dict[str, Any]:
     """Run defect detection and clean-test downstream classification on the public reference."""
     detector_frame, modeling_frame, metadata = build_wine_reference()
@@ -101,23 +102,37 @@ def run_wine_reference_experiment(
         seeds=seeds,
         n_estimators=n_estimators,
     )
-    downstream_report = run_classification_corruption_experiment(
-        modeling_frame,
-        target_column="target",
-        feature_columns=["alcohol_band"],
-        seeds=seeds,
-        test_size=0.25,
-        corruption_rate=0.05,
-    )
+    normalized_ml_rates = tuple(float(rate) for rate in ml_corruption_rates)
+    if (
+        not normalized_ml_rates
+        or len(set(normalized_ml_rates)) != len(normalized_ml_rates)
+        or any(not np.isfinite(rate) or not 0 < rate <= 0.5 for rate in normalized_ml_rates)
+    ):
+        raise ValueError("ml_corruption_rates must be distinct values in (0, 0.5]")
+
+    downstream_experiments = [
+        run_classification_corruption_experiment(
+            modeling_frame,
+            target_column="target",
+            feature_columns=["alcohol_band"],
+            seeds=seeds,
+            test_size=0.25,
+            corruption_rate=rate,
+        )
+        for rate in normalized_ml_rates
+    ]
     return {
         "schema_version": 1,
         "dataset": metadata,
         "detector_benchmark": detector_report,
-        "downstream_classification": downstream_report,
+        "downstream_classification": {
+            "corruption_rates": list(normalized_ml_rates),
+            "experiments": downstream_experiments,
+        },
         "scope_limitations": [
             "The UCI Wine dataset is small (178 rows) and results are dataset-specific.",
             "The categorical alcohol_band feature is derived for detector coverage and is not an original UCI attribute.",
-            "The downstream experiment uses only the derived alcohol_band feature (excluding its source alcohol column), and evaluates one classification task with categorical inconsistency at a 5% training-feature corruption rate.",
+            "The downstream experiment uses only the derived alcohol_band feature (excluding its source alcohol column) and evaluates categorical inconsistency at 5%, 10%, and 20% training-feature corruption rates on one classification task.",
             "Regression downstream evaluation and other corruption types remain outstanding.",
             "Detector runtime excludes corruption generation and metric calculation; Python tracemalloc is only a partial memory proxy.",
         ],
