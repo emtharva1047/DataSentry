@@ -102,7 +102,33 @@ The source CSV is read-only. The CLI records the source filename, SHA-256, byte 
 
 For every detector/rate pair, retain per-seed TP/FP/TN/FN, precision, recall, F1, accuracy, runtime, and Python tracemalloc peak-allocation delta. Runtime covers prediction only, excluding corruption generation and metric calculation. The memory value is a Python allocation proxy and does not fully include native NumPy/scikit-learn allocations. At least three distinct seeds are required. If any requested seed is skipped or incomplete for a detector, no aggregate is emitted for that detector/rate; the skipped reason remains in the report. Aggregates use arithmetic mean and sample standard deviation (ddof=1).
 
-The numerical adapters deliberately reuse the same internal IQR, robust-Z, and Isolation Forest functions as the production anomaly endpoint. Rule-detector evaluation is controlled by the clean reference schema and should not be interpreted as an estimate of performance on unknown real-world schemas. The categorical rule may flag legitimate case variants. Duplicate metrics are row-level and mark inserted duplicate occurrences after the first. The runner is implemented and covered by automated tests; actual benchmark results must be generated from a documented reference dataset before reporting detector performance.
+The numerical adapters deliberately reuse the same internal IQR, robust-Z, and Isolation Forest functions as the production anomaly endpoint. Rule-detector evaluation is controlled by the clean reference schema and should not be interpreted as an estimate of performance on unknown real-world schemas. The categorical rule may flag legitimate case variants. Duplicate metrics are row-level and mark inserted duplicate occurrences after the first. The public UCI Wine GitHub Actions workflow has executed and its report has been inspected; measured results and limitations are recorded in docs/RESEARCH_RESULTS.md.
+
+## Public UCI Wine reference and downstream classification experiment
+
+The first public reference workflow uses the Wine Recognition dataset (UCI Machine Learning Repository dataset 109). The scikit-learn loader provides 178 observations, 13 numeric predictors, and three classes. The experiment uses the bundled copy through `sklearn.datasets.load_wine(as_frame=True)`, so the CI job does not need a runtime dataset download. Provenance links:
+
+- UCI dataset record: https://archive.ics.uci.edu/dataset/109/wine
+- Original UCI data file: https://archive.ics.uci.edu/ml/machine-learning-databases/wine/wine.data
+- scikit-learn loader documentation: https://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_wine.html
+
+A deterministic `alcohol_band` feature is derived from the original `alcohol` column with fixed edges at 12.0 and 13.0 and labels `low`, `medium`, and `high`. This is explicitly not an original UCI feature; it exists to make the categorical inconsistency detector applicable. The original target is excluded from detector benchmarking. The report records canonical frame hashes, target class counts, derived-feature rules, and software versions.
+
+The detector benchmark runs at 1%, 5%, and 10% with seeds 42, 123, and 2026. All five defect types are requested; any ineligible detector or skipped seed remains visible and prevents an aggregate for that detector/rate. The UCI Wine frame has only one derived categorical feature, so categorical consistency results are based on that engineered column and must not be generalized to arbitrary categorical schemas.
+
+The downstream classification experiment uses only the derived alcohol_band feature, deliberately excluding the source alcohol column and other predictors to prevent the model from bypassing the corrupted categorical representation. It uses a separate protocol:
+
+1. Create a stratified 75/25 split from the untouched clean reference for each seed.
+2. Infer feature types from the clean training partition only.
+3. Inject 5%, 10%, and 20% categorical case/whitespace inconsistency in separate training-only runs; do not corrupt the target or test partition.
+4. Compare three conditions on the same test rows within each seed: clean training, corrupted training, and cleaned-corrupted training.
+5. The cleaned-corrupted condition applies the production whitespace-trim and lowercase operations to training categorical features only. Because those operations exactly reverse the injected case/whitespace variants, clean and cleaned-corrupted predictive metrics are expected to match and are asserted as a control.
+6. Fit median imputation, scaling, and one-hot encoding inside a separate scikit-learn pipeline for each condition using that condition's training rows only.
+7. Retain accuracy, balanced accuracy, macro precision/recall/F1, confusion matrices, runtime, per-seed test fingerprints, and mean/sample-standard-deviation aggregates.
+
+The first downstream experiment is classification-only and uses the derived alcohol_band feature alone to isolate categorical inconsistency at 5%, 10%, and 20% corruption rates on one small public dataset. Its measured macro-F1 is unchanged across clean, corrupted, and cleaned-corrupted conditions in this experiment; see docs/RESEARCH_RESULTS.md. It does not yet cover regression or other training-only corruption types. A performance difference is descriptive evidence for this dataset, split protocol, corruption rate, and baseline; it is not a universal claim that cleaning always improves model quality.
+
+The command is `python -m scripts.run_public_reference_experiments`. GitHub Actions workflow `.github/workflows/research-evaluation.yml` runs the full detector benchmark and downstream classification experiment and uploads the JSON report as `uci-wine-reference-experiment` for 30 days. The 14 November 2026 workflow artifact has been inspected; measured detector and downstream classification results, plus limitations, are recorded in docs/RESEARCH_RESULTS.md. Those results are specific to this small reference, derived feature, corruption protocol, and baseline and must not be generalized.
 
 ## Evaluation metrics
 

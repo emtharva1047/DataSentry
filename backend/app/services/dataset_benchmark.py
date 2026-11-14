@@ -307,7 +307,10 @@ def _numerical_detector_cases(
         ),
     ]
     for detector_name, detector_call in detector_calls:
-        result, flagged_indexes = detector_call()
+        # Run once outside the measurement window to establish eligibility. The
+        # prediction callable below reruns the complete production detector so
+        # timing and tracemalloc include the actual algorithm, not only mask creation.
+        result, _ = detector_call()
         if result.get("status") != "completed":
             cases.append(
                 {
@@ -317,14 +320,25 @@ def _numerical_detector_cases(
                 }
             )
             continue
+
+        def predict(
+            call=detector_call,
+            row_count=len(frame),
+            name=detector_name,
+        ):
+            measured_result, measured_indexes = call()
+            if measured_result.get("status") != "completed":
+                raise RuntimeError(
+                    f"{name} changed eligibility between preflight and measurement."
+                )
+            return _row_predictions(row_count, measured_indexes)
+
         cases.append(
             {
                 "detector": detector_name,
                 "unit": "row",
                 "truth": truth,
-                "predict": lambda indexes=set(flagged_indexes): _row_predictions(
-                    len(frame), indexes
-                ),
+                "predict": predict,
             }
         )
     return cases
@@ -383,7 +397,7 @@ def _detector_cases(
 
 
 def _measure_detector(case: dict[str, Any]) -> dict[str, Any]:
-    """Measure prediction time and Python-traced peak allocation for one detector."""
+    """Measure full detector execution time and Python-traced peak allocation."""
     was_tracing = tracemalloc.is_tracing()
     if not was_tracing:
         tracemalloc.start()
@@ -553,8 +567,8 @@ def run_synthetic_detector_benchmark(
             "The numerical IQR, robust-Z, and Isolation Forest adapters reuse the production anomaly implementation and its numeric-column eligibility rules.",
             "The categorical rule mirrors whitespace and casefold-variant findings; a legitimate case variant can therefore be a false positive.",
             "Invalid-value evaluation uses numeric columns identified from the clean reference frame as the known schema for this controlled experiment.",
-            "Timing covers detector prediction only and excludes corruption generation and metric calculation.",
-            "Memory is the Python-traced peak allocation delta; native NumPy and scikit-learn allocations may not be fully represented.",
+            "Timing covers the complete detector execution, including Isolation Forest fit/predict, and excludes corruption generation and metric calculation. Numerical detector eligibility is preflighted outside the timed interval; the measured callable reruns the detector.",
+            "Memory is the Python-traced peak allocation delta during detector execution; native NumPy and scikit-learn allocations may not be fully represented.",
             "Every requested seed must complete for an aggregate to be reported; skipped runs are retained and never silently dropped.",
             "The clean-reference preflight rejects pre-existing missing cells, exact duplicate rows, detected categorical whitespace/case variants, and invalid values in inferred numeric-like columns.",
             "Statistical outliers are not rejected by preflight; if a detector flags them, they count as false positives against injected-only labels.",

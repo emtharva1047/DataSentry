@@ -2,7 +2,12 @@
 import pandas as pd
 import pytest
 
-from app.services.dataset_benchmark import run_synthetic_detector_benchmark
+from app.services import dataset_anomaly
+from app.services.dataset_benchmark import (
+    _measure_detector,
+    _numerical_detector_cases,
+    run_synthetic_detector_benchmark,
+)
 
 
 def _reference_frame(rows: int = 120) -> pd.DataFrame:
@@ -152,3 +157,49 @@ def test_benchmark_rejects_preexisting_deterministic_defects(defect, expected_fi
             defects=("missingness",),
         )
 
+
+
+def test_numerical_detector_measurement_reruns_the_full_detector(monkeypatch):
+    calls = {"iqr": 0, "robust_zscore": 0, "isolation_forest": 0}
+
+    def fake_detector(name):
+        def run(*args):
+            calls[name] += 1
+            return {"status": "completed"}, {1, 3}
+        return run
+
+    monkeypatch.setattr(dataset_anomaly, "_run_iqr", fake_detector("iqr"))
+    monkeypatch.setattr(
+        dataset_anomaly, "_run_robust_zscore", fake_detector("robust_zscore")
+    )
+    monkeypatch.setattr(
+        dataset_anomaly, "_run_isolation_forest", fake_detector("isolation_forest")
+    )
+
+    frame = pd.DataFrame({"amount": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]})
+    ground_truth = {
+        "numeric_columns_used": ["amount"],
+        "row_labels": [
+            {"row_index": 1, "defect_types": ["numerical_anomalies"]},
+            {"row_index": 3, "defect_types": ["numerical_anomalies"]},
+        ],
+    }
+    cases = _numerical_detector_cases(
+        frame,
+        ground_truth,
+        seed=42,
+        n_estimators=10,
+        contamination=0.05,
+        iqr_multiplier=1.5,
+        robust_z_threshold=3.5,
+    )
+
+    assert len(cases) == 3
+    assert calls == {"iqr": 1, "robust_zscore": 1, "isolation_forest": 1}
+
+    measured = _measure_detector(cases[0])
+
+    assert calls["iqr"] == 2
+    assert measured["confusion_counts"]["true_positive"] == 2
+    assert measured["metrics"]["runtime_seconds"] >= 0
+    assert measured["metrics"]["python_tracemalloc_peak_bytes"] >= 0

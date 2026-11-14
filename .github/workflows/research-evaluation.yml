@@ -1,0 +1,58 @@
+name: Research Evaluation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/app/services/dataset_benchmark.py"
+      - "backend/app/services/dataset_ml_experiment.py"
+      - "backend/app/services/dataset_reference_experiment.py"
+      - "backend/scripts/**"
+      - "backend/tests/test_dataset_reference_experiment.py"
+      - ".github/workflows/research-evaluation.yml"
+  pull_request:
+    paths:
+      - "backend/app/services/dataset_benchmark.py"
+      - "backend/app/services/dataset_ml_experiment.py"
+      - "backend/app/services/dataset_reference_experiment.py"
+      - "backend/scripts/**"
+      - "backend/tests/test_dataset_reference_experiment.py"
+      - ".github/workflows/research-evaluation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-reference-experiment:
+    name: UCI Wine detector and clean-test ML experiment
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend dependencies
+        working-directory: backend
+        run: python -m pip install -r requirements.txt
+      - name: Run public reference experiments
+        working-directory: backend
+        run: >-
+          python -m scripts.run_public_reference_experiments
+          --rates 0.01,0.05,0.10
+          --seeds 42,123,2026
+          --n-estimators 100
+          --ml-corruption-rates 0.05,0.10,0.20
+          --output /tmp/uci-wine-reference-experiment.json
+      - name: Upload reproducible experiment report
+        uses: actions/upload-artifact@v4
+        with:
+          name: uci-wine-reference-experiment
+          path: /tmp/uci-wine-reference-experiment.json
+          if-no-files-found: error
+          retention-days: 30
