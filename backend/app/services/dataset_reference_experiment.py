@@ -104,6 +104,7 @@ def run_wine_reference_experiment(
     downstream_report = run_classification_corruption_experiment(
         modeling_frame,
         target_column="target",
+        feature_columns=["alcohol_band"],
         seeds=seeds,
         test_size=0.25,
         corruption_rate=0.05,
@@ -116,7 +117,7 @@ def run_wine_reference_experiment(
         "scope_limitations": [
             "The UCI Wine dataset is small (178 rows) and results are dataset-specific.",
             "The categorical alcohol_band feature is derived for detector coverage and is not an original UCI attribute.",
-            "The downstream experiment currently evaluates one classification task and categorical inconsistency at a 5% training-feature corruption rate.",
+            "The downstream experiment uses only the derived alcohol_band feature (excluding its source alcohol column), and evaluates one classification task with categorical inconsistency at a 5% training-feature corruption rate.",
             "Regression downstream evaluation and other corruption types remain outstanding.",
             "Detector runtime excludes corruption generation and metric calculation; Python tracemalloc is only a partial memory proxy.",
         ],

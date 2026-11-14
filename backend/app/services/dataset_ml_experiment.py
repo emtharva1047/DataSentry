@@ -35,6 +35,7 @@ def _frame_sha256(frame: pd.DataFrame) -> str:
 def _validate_experiment(
     frame: pd.DataFrame,
     target_column: str,
+    feature_columns: Sequence[str] | None,
     seeds: Sequence[int],
     test_size: float,
     corruption_rate: float,
@@ -88,9 +89,25 @@ def _validate_experiment(
     if row_count < MINIMUM_ROWS or expected_test_rows < len(class_counts):
         raise ValueError("the reference dataset is too small for the requested stratified holdout")
 
-    features = normalized.drop(columns=[target_column])
-    if features.shape[1] == 0:
+    all_features = normalized.drop(columns=[target_column])
+    if feature_columns is None:
+        selected_columns = list(all_features.columns)
+    else:
+        if isinstance(feature_columns, (str, bytes)):
+            raise ValueError("feature_columns must be a sequence of column names")
+        selected_columns = list(feature_columns)
+        if not selected_columns:
+            raise ValueError("at least one feature column is required")
+        if len(set(selected_columns)) != len(selected_columns):
+            raise ValueError("feature_columns must be distinct")
+        if target_column in selected_columns:
+            raise ValueError("the target column cannot also be a feature")
+        unknown = [name for name in selected_columns if name not in all_features.columns]
+        if unknown:
+            raise ValueError("unknown feature column(s): " + ", ".join(map(str, unknown[:10])))
+    if not selected_columns:
         raise ValueError("at least one feature column is required")
+    features = all_features.loc[:, selected_columns].copy()
     return features, target, tuple(normalized_seeds)
 
 
@@ -177,6 +194,7 @@ def run_classification_corruption_experiment(
     frame: pd.DataFrame,
     *,
     target_column: str,
+    feature_columns: Sequence[str] | None = None,
     seeds: Sequence[int] = DEFAULT_EXPERIMENT_SEEDS,
     test_size: float = 0.25,
     corruption_rate: float = 0.05,
@@ -190,7 +208,7 @@ def run_classification_corruption_experiment(
     """
     source = frame.copy(deep=True)
     features, target, normalized_seeds = _validate_experiment(
-        frame, target_column, seeds, test_size, corruption_rate
+        frame, target_column, feature_columns, seeds, test_size, corruption_rate
     )
     per_seed: list[dict[str, Any]] = []
     condition_names = ("clean", "corrupted", "cleaned_corrupted")
@@ -282,6 +300,7 @@ def run_classification_corruption_experiment(
                     "test_partition_untouched": True,
                 },
                 "training_features": {
+                    "selected_columns": list(features.columns),
                     "numeric_columns_inferred_from_clean_training": numeric_columns,
                     "categorical_columns_inferred_from_clean_training": categorical_columns,
                 },
@@ -349,6 +368,7 @@ def run_classification_corruption_experiment(
             "test_size": float(test_size),
             "corruption_rate": float(corruption_rate),
             "corruption_defect": "categorical_inconsistency",
+            "selected_feature_columns": list(features.columns),
             "model_parameters": {
                 "max_iter": 1000,
                 "class_weight": "balanced",
@@ -365,7 +385,7 @@ def run_classification_corruption_experiment(
             "Numeric/categorical feature inference uses clean training rows only; every fitted imputer, scaler, and encoder is fitted inside a pipeline on the condition-specific training partition only.",
             "The cleaned-corrupted condition applies DataSentry's production whitespace-trim and lowercase operations to training categorical features only.",
             "The classifier is the same class-weighted logistic-regression baseline used by the production modeling service.",
-            "The experiment evaluates categorical case/whitespace inconsistency on one public reference dataset; it does not establish generalization to other datasets or defect types.",
+            "The experiment evaluates categorical case/whitespace inconsistency on one public reference dataset and only the explicitly selected features; it does not establish generalization to other datasets or defect types.",
             "Seed-level metrics are retained; aggregates use arithmetic mean and sample standard deviation (ddof=1).",
             "The source DataFrame and clean test partition are checked for mutation.",
         ],

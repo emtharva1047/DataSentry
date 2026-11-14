@@ -175,15 +175,15 @@ The input CSV is read-only. Before injecting defects, the runner rejects pre-exi
 
 Run the reproducible public-reference experiment from the backend directory:
 
-\`\`\`powershell
+```powershell
 python -m scripts.run_public_reference_experiments --rates 0.01,0.05,0.10 --seeds 42,123,2026 --n-estimators 100 --output research-results/uci-wine-reference-experiment.json
-\`\`\`
+```
 
-The runner uses scikit-learn's bundled copy of the UCI Wine Recognition dataset (UCI dataset 109; 178 observations and 13 original numeric features). It adds a documented derived \`alcohol_band\` feature from \`alcohol\` using fixed cut points at 12.0 and 13.0 solely so categorical inconsistency can be evaluated. The original target is excluded from detector benchmarking. The source and derived-frame SHA-256 fingerprints and software versions are recorded.
+The runner uses scikit-learn's bundled copy of the UCI Wine Recognition dataset (UCI dataset 109; 178 observations and 13 original numeric features). It adds a documented derived `alcohol_band` feature from `alcohol` using fixed cut points at 12.0 and 13.0 solely so categorical inconsistency can be evaluated. The original target is excluded from detector benchmarking. The source and derived-frame SHA-256 fingerprints and software versions are recorded.
 
-The downstream classification experiment creates a stratified 75/25 split from the clean reference separately for seeds 42, 123, and 2026. It corrupts only training features with 5% categorical case/whitespace inconsistency, then compares clean, corrupted, and cleaned-corrupted training conditions on the same untouched test partition within each seed. The cleaned condition applies DataSentry's production trim-whitespace and lowercase operations to training features only. The logistic-regression preprocessing pipeline is fitted separately on each condition's training rows only. Seed-level metrics and mean/sample-standard-deviation aggregates are retained.
+The downstream classification experiment creates a stratified 75/25 split from the clean reference separately for seeds 42, 123, and 2026. It uses only the derived alcohol_band feature (excluding its source alcohol column) to isolate the categorical signal, corrupts only training features with 5% categorical case/whitespace inconsistency, then compares clean, corrupted, and cleaned-corrupted training conditions on the same untouched test partition within each seed. The cleaned condition applies DataSentry's production trim-whitespace and lowercase operations to training features only. The logistic-regression preprocessing pipeline is fitted separately on each condition's training rows only. Seed-level metrics and mean/sample-standard-deviation aggregates are retained.
 
-GitHub Actions workflow \`.github/workflows/research-evaluation.yml\` executes the full 1%/5%/10% detector benchmark and the downstream classification experiment, then publishes \`uci-wine-reference-experiment.json\` as a 30-day workflow artifact. The dataset is small and results are dataset-specific. The derived category is not an original UCI feature. This first downstream experiment covers classification and categorical inconsistency only; regression and other training-only corruption conditions remain outstanding.
+GitHub Actions workflow `.github/workflows/research-evaluation.yml` executes the full 1%/5%/10% detector benchmark and the downstream classification experiment, then publishes `uci-wine-reference-experiment.json` as a 30-day workflow artifact. The dataset is small and results are dataset-specific. The derived category is not an original UCI feature. This first downstream experiment covers classification and categorical inconsistency only; regression and other training-only corruption conditions remain outstanding.
 
 ## Local setup
 
