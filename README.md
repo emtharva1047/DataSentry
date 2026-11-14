@@ -4,7 +4,7 @@
 
 DataSentry is a research-oriented full-stack application that profiles tabular datasets, detects quality issues using statistical, rule-based, and machine-learning techniques, recommends transparent cleaning actions, and evaluates how data defects affect downstream ML models.
 
-> **Status:** The FastAPI backend supports validated CSV ingestion, SQLite metadata persistence, statistical profiling, explainable quality assessment, explicit schema/domain validation, anomaly detection, safe cleaning, immutable versions, and DQS/numeric-profile comparison. The Next.js dashboard integrates quality reports, anomaly review, cleaning previews, explicit apply, version history, and before/after comparisons. Live browser-to-API verification, ML-readiness/baseline-model dashboard integration, repeated-seed downstream model evaluation, and controlled research results remain in progress. ML-readiness diagnostics and seeded baseline model APIs are implemented. Deterministic synthetic corruption, exact ground truth, and a defect-specific detector benchmark runner/CLI are implemented; benchmark execution and downstream clean-test evaluation remain pending.
+> **Status:** The FastAPI backend supports validated CSV ingestion, SQLite metadata persistence, statistical profiling, explainable quality assessment, explicit schema/domain validation, anomaly detection, safe cleaning, immutable versions, and DQS/numeric-profile comparison. The Next.js dashboard integrates quality reports, anomaly review, cleaning previews, explicit apply, version history, and before/after comparisons. Live browser-to-API verification and ML-readiness/baseline-model dashboard integration remain in progress. A reproducible UCI Wine reference experiment now runs detector benchmarks and a clean-test classification comparison in GitHub Actions; its JSON artifact is retained for review. Broader datasets, downstream regression, and final research analysis remain in progress. ML-readiness diagnostics and seeded baseline model APIs are implemented. Deterministic synthetic corruption, exact ground truth, and a defect-specific detector benchmark runner/CLI are implemented; benchmark execution and downstream clean-test evaluation remain pending.
 
 ## Current capabilities
 
@@ -19,7 +19,7 @@ DataSentry is a research-oriented full-stack application that profiles tabular d
 - Interactive numerical anomaly review with IQR, modified robust Z-score, and Isolation Forest selection; configurable thresholds, contamination, random seed, and tree count; numeric-column eligibility diagnostics; flagged-row evidence; and source fingerprint display.
 - Interactive safe-cleaning workflow with advisory recommendations, explicit operation selection, read-only before/after row previews, a review acknowledgement before apply, immutable version history, and DQS/numeric-profile comparison.
 - Read-only ML-readiness diagnostics for target completeness, classification imbalance, suspicious target copies/associations, duplicate feature-vector split risks, feature redundancy, missing feature values, and dataset-size caveats; seeded logistic-regression and Ridge baseline evaluation with train-only preprocessing.
-- Internal deterministic synthetic-corruption utilities for five defect types with exact cell/row labels; a benchmark runner connects applicable rule detectors and the production IQR, robust-Z, and Isolation Forest implementations to defect-specific ground truth, reporting per-seed confusion counts, precision/recall/F1, runtime, Python-traced peak allocation, and three-or-more-seed mean/sample-standard-deviation aggregates.
+- Internal deterministic synthetic-corruption utilities for five defect types with exact cell/row labels; a benchmark runner connects applicable rule detectors and production numerical detectors to defect-specific ground truth. A public UCI Wine workflow executes the benchmark at 1%, 5%, and 10% across seeds 42, 123, and 2026, and runs a downstream classification comparison with corruption restricted to training features and an untouched clean test partition. GitHub Actions publishes the JSON report as an artifact.
 
 Anomaly review is available beside the quality check for each dataset. The dashboard sends detector selections and validated parameters to `POST /api/datasets/{id}/anomalies`, then displays per-detector flagged counts, row references, numeric eligibility, and method notes. The scan uses all eligible numeric-like columns; column-level filtering remains API-only. Anomaly findings are not included in DQS and never change source rows.
 
@@ -170,6 +170,20 @@ python -m scripts.run_detector_benchmark reference.csv --rates 0.01,0.05,0.10 --
 ```
 
 The input CSV is read-only. Before injecting defects, the runner rejects pre-existing missing cells, exact duplicate rows, detected categorical whitespace/case variants, and invalid values in inferred numeric-like columns. Statistical outliers are not rejected; if a detector flags them, they count as false positives against injected-only labels. The report records the filename, SHA-256, size, shape, Python, pandas, NumPy, and scikit-learn versions. Each rate/defect/detector experiment retains per-seed confusion counts and metrics; mean and sample standard deviation are emitted only when every requested seed completes. Missingness, categorical inconsistency, and invalid-value checks use cell-level labels; duplicate and numerical-anomaly checks use row-level labels. IQR, modified robust Z-score, and Isolation Forest reuse the production anomaly implementations. Python-traced memory is an allocation proxy and excludes some native-library memory. A report is not a substitute for the separate downstream experiment with an untouched clean test set.
+
+## Public reference experiment
+
+Run the reproducible public-reference experiment from the backend directory:
+
+\`\`\`powershell
+python -m scripts.run_public_reference_experiments --rates 0.01,0.05,0.10 --seeds 42,123,2026 --n-estimators 100 --output research-results/uci-wine-reference-experiment.json
+\`\`\`
+
+The runner uses scikit-learn's bundled copy of the UCI Wine Recognition dataset (UCI dataset 109; 178 observations and 13 original numeric features). It adds a documented derived \`alcohol_band\` feature from \`alcohol\` using fixed cut points at 12.0 and 13.0 solely so categorical inconsistency can be evaluated. The original target is excluded from detector benchmarking. The source and derived-frame SHA-256 fingerprints and software versions are recorded.
+
+The downstream classification experiment creates a stratified 75/25 split from the clean reference separately for seeds 42, 123, and 2026. It corrupts only training features with 5% categorical case/whitespace inconsistency, then compares clean, corrupted, and cleaned-corrupted training conditions on the same untouched test partition within each seed. The cleaned condition applies DataSentry's production trim-whitespace and lowercase operations to training features only. The logistic-regression preprocessing pipeline is fitted separately on each condition's training rows only. Seed-level metrics and mean/sample-standard-deviation aggregates are retained.
+
+GitHub Actions workflow \`.github/workflows/research-evaluation.yml\` executes the full 1%/5%/10% detector benchmark and the downstream classification experiment, then publishes \`uci-wine-reference-experiment.json\` as a 30-day workflow artifact. The dataset is small and results are dataset-specific. The derived category is not an original UCI feature. This first downstream experiment covers classification and categorical inconsistency only; regression and other training-only corruption conditions remain outstanding.
 
 ## Local setup
 
