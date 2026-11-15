@@ -1050,6 +1050,20 @@ export default function Home() {
                             >
                               Review cleaning
                             </button>
+                            <button
+                              type="button"
+                              className="secondary-button focus-ring whitespace-nowrap text-[11px]"
+                              onClick={() => {
+                                setSelectedDatasetId(dataset.id);
+                                setQualityReport(null);
+                                setQualityError(null);
+                                setAnomalyReport(null);
+                                setAnomalyError(null);
+                              }}
+                              aria-label={"Open ML readiness for " + dataset.filename}
+                            >
+                              ML readiness
+                            </button>
                           </div>
                         </td>
                       </tr>
