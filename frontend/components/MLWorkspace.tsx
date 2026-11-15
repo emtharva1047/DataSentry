@@ -166,7 +166,7 @@ export default function MLWorkspace({ dataset }: { dataset: Dataset | null }) {
         <div className="space-y-4">
           <div>
             <label htmlFor="ml-task" className="mb-2 block text-xs font-semibold text-slate-300">Prediction task</label>
-            <select id="ml-task" className="input-field w-full" value={taskType} onChange={(event) => { setTaskType(event.target.value as MLTaskType); clearResults(); }}>
+            <select id="ml-task" className="w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-emerald-300" value={taskType} onChange={(event) => { setTaskType(event.target.value as MLTaskType); clearResults(); }}>
               <option value="classification">Classification</option>
               <option value="regression">Regression</option>
             </select>
@@ -182,7 +182,7 @@ export default function MLWorkspace({ dataset }: { dataset: Dataset | null }) {
                 <button type="button" className="mt-2 underline" onClick={() => { setProfileError(null); setIsLoadingProfile(true); setReloadKey((value) => value + 1); }}>Retry column loading</button>
               </div>
             ) : (
-              <select id="ml-target" className="input-field w-full" value={targetColumn} onChange={(event) => changeTarget(event.target.value)}>
+              <select id="ml-target" className="w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-emerald-300" value={targetColumn} onChange={(event) => changeTarget(event.target.value)}>
                 {profile?.columns.map((column) => (
                   <option key={column.name} value={column.name}>{column.name} · {column.inferred_type}</option>
                 ))}
@@ -210,11 +210,11 @@ export default function MLWorkspace({ dataset }: { dataset: Dataset | null }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label htmlFor="ml-test-size" className="mb-2 block text-xs font-semibold text-slate-300">Test fraction</label>
-              <input id="ml-test-size" type="number" min="0.11" max="0.49" step="0.05" value={testSize} onChange={(event) => { setTestSize(event.target.value); setModelReport(null); }} className="input-field w-full" />
+              <input id="ml-test-size" type="number" min="0.11" max="0.49" step="0.05" value={testSize} onChange={(event) => { setTestSize(event.target.value); setModelReport(null); }} className="w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-emerald-300" />
             </div>
             <div>
               <label htmlFor="ml-seed" className="mb-2 block text-xs font-semibold text-slate-300">Random seed</label>
-              <input id="ml-seed" type="number" min="0" max="4294967295" step="1" value={randomState} onChange={(event) => { setRandomState(event.target.value); setModelReport(null); }} className="input-field w-full" />
+              <input id="ml-seed" type="number" min="0" max="4294967295" step="1" value={randomState} onChange={(event) => { setRandomState(event.target.value); setModelReport(null); }} className="w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-emerald-300" />
             </div>
           </div>
 
