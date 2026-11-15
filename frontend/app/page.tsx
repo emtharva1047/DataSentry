@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import CleaningPanel from "@/components/CleaningPanel";
+import MLWorkspace from "@/components/MLWorkspace";
 import {
   API_DOCS_URL,
   getDatasetAnomalies,
@@ -1049,6 +1050,20 @@ export default function Home() {
                             >
                               Review cleaning
                             </button>
+                            <button
+                              type="button"
+                              className="secondary-button focus-ring whitespace-nowrap text-[11px]"
+                              onClick={() => {
+                                setSelectedDatasetId(dataset.id);
+                                setQualityReport(null);
+                                setQualityError(null);
+                                setAnomalyReport(null);
+                                setAnomalyError(null);
+                              }}
+                              aria-label={"Open ML readiness for " + dataset.filename}
+                            >
+                              ML readiness
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -1163,6 +1178,10 @@ export default function Home() {
 
         <div className="mt-6">
           <CleaningPanel key={selectedDataset?.id ?? "no-dataset"} dataset={selectedDataset} />
+        </div>
+
+        <div className="mt-6">
+          <MLWorkspace key={selectedDataset?.id ?? "no-dataset"} dataset={selectedDataset} />
         </div>
 
         <footer className="mt-10 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800/80 pt-5 text-[11px] text-slate-600">
