@@ -164,3 +164,10 @@ Synthetic defects may not represent real-world errors; detector performance depe
 - Save detector parameters and software versions.
 - Record train/test split seed and model hyperparameters.
 - Report all evaluated runs, including negative results.
+
+
+## Dashboard integration (15 November 2026)
+
+The Next.js ML workspace loads the dataset profile to populate target and feature selection, then calls the existing `POST /api/datasets/{id}/ml-readiness` endpoint. It displays readiness status, target completeness, class distribution when applicable, duplicate split risk, leakage indicators, redundancy count, and warnings/blockers. Baseline execution is enabled only after a readiness report without blockers and calls `POST /api/datasets/{id}/baseline-model` with the selected target/features, holdout fraction, and random seed. It renders classification or regression metrics, the classification confusion matrix, train/test counts, preprocessing fit scope, source fingerprint, and software versions. The workspace does not persist models or modify the uploaded CSV.
+
+The integration has frontend lint/type/build CI coverage but has not yet been exercised in a real browser against a running FastAPI service. This remains an explicit end-to-end verification task.

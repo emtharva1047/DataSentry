@@ -62,3 +62,13 @@ The corruption primitives live in backend/app/services/dataset_research.py; the 
 ## Scope cuts
 
 Keep CSV only, SQLite, one classifier and one regressor. Defer role-based access, cloud-scale processing, Excel/Parquet, and advanced PDF export if needed.
+
+
+## 15 November 2026 — ML workspace integration
+
+- Added a profile-driven ML workspace to the Next.js dashboard.
+- Users select a classification/regression task, target column, and explicit feature set.
+- The workspace calls the existing read-only readiness endpoint before enabling baseline training; blockers disable training while warnings remain visible for review.
+- The baseline action exposes the configured holdout fraction and random seed and displays task-appropriate metrics, classification confusion counts, split sizes, preprocessing fit scope, software versions, and source fingerprint.
+- The UI does not claim that readiness heuristics prove absence of leakage or that one holdout is a general performance estimate.
+- Live browser-to-FastAPI verification and repeated-seed model evaluation remain outstanding.

@@ -145,6 +145,168 @@ export type AnomalyReport = {
   method_notes: string[];
 };
 
+
+
+export type DatasetProfileColumn = {
+  name: string;
+  inferred_type: string;
+  non_null_count: number;
+  missing_count: number;
+  missing_pct: number;
+  unique_count: number;
+  sample_values: string[];
+  numeric_summary?: Record<string, number | null> | null;
+  histogram?: Array<{ bin_start: number | null; bin_end: number | null; count: number }>;
+  top_values?: Array<{ value: string; count: number }>;
+  other_count?: number;
+};
+
+export type DatasetProfile = {
+  dataset_id: number;
+  filename: string;
+  source_sha256: string | null;
+  shape: { rows: number; columns: number };
+  columns: DatasetProfileColumn[];
+};
+
+export type MLTaskType = "classification" | "regression";
+
+export type MLReadinessRequest = {
+  target_column: string;
+  task_type: MLTaskType;
+  feature_columns: string[];
+};
+
+export type MLReadinessFinding = {
+  code: string;
+  message: string;
+  severity: "high" | "medium" | "low";
+};
+
+export type MLReadinessReport = {
+  dataset_id: number;
+  filename: string;
+  source_sha256: string | null;
+  generated_at: string;
+  shape: { rows: number; columns: number };
+  readiness_status: "blocked" | "review_required" | "ready_for_baseline";
+  target: {
+    column: string;
+    task_type: MLTaskType;
+    row_count: number;
+    observed_count: number;
+    missing_count: number;
+    completeness_pct: number;
+    class_count?: number;
+    class_distribution?: Array<{ label: string; count: number; percentage: number }>;
+    class_distribution_truncated?: boolean;
+    majority_class_share_pct?: number;
+    minority_class_count?: number;
+    majority_to_minority_ratio?: number | null;
+    numeric_parseable_count?: number;
+    non_numeric_or_non_finite_count?: number;
+    numeric_completeness_pct?: number;
+  };
+  selected_features: string[];
+  feature_missingness: Array<{ column: string; missing_count: number; missing_pct: number }>;
+  duplicate_split_risk: {
+    duplicate_rows_after_first: number;
+    duplicate_groups: number;
+    duplicate_rate_pct: number;
+    row_numbers: number[];
+    row_numbers_truncated: boolean;
+    definition: string;
+  };
+  leakage_indicators: Array<{
+    feature: string;
+    kind: string;
+    agreement_pct?: number;
+    coverage_pct?: number;
+    absolute_pearson_correlation?: number;
+    compared_rows: number;
+    review_required: boolean;
+  }>;
+  feature_redundancy: {
+    exact_duplicate_feature_pairs: Array<Record<string, unknown>>;
+    high_correlation_pairs: Array<Record<string, unknown>>;
+    reported_pair_count: number;
+    numeric_columns_assessed: string[];
+    numeric_columns_truncated: boolean;
+    pairs_truncated: boolean;
+  };
+  dataset_size: {
+    rows: number;
+    feature_count: number;
+    rows_per_feature: number | null;
+    category: string;
+    minimum_row_guidance: number;
+  };
+  warnings: MLReadinessFinding[];
+  blockers: MLReadinessFinding[];
+  model_training_performed: false;
+  baseline_models: { status: string; note: string };
+  parameters: Record<string, number>;
+  software_versions: Record<string, string>;
+  method_notes: string[];
+};
+
+export type BaselineModelRequest = {
+  target_column: string;
+  task_type: MLTaskType;
+  feature_columns: string[];
+  test_size: number;
+  random_state: number;
+};
+
+export type BaselineModelReport = {
+  dataset_id: number;
+  filename: string;
+  source_sha256: string;
+  generated_at: string;
+  task_type: MLTaskType;
+  model: "logistic_regression" | "ridge_regression";
+  model_training_performed: true;
+  target: { column: string; eligible_rows: number; excluded_rows: number };
+  features: {
+    selected_columns: string[];
+    numeric_columns_inferred_from_training: string[];
+    categorical_columns_inferred_from_training: string[];
+    numeric_parseability_threshold: number;
+    max_categories_per_feature: number;
+  };
+  split: {
+    strategy: string;
+    random_state: number;
+    test_size: number;
+    train_rows: number;
+    test_rows: number;
+  };
+  preprocessing: {
+    fit_scope: string;
+    fit_rows: number;
+    test_partition_used_to_fit_preprocessing: false;
+    numeric: string;
+    categorical: string;
+  };
+  model_parameters: Record<string, number | string>;
+  metrics: {
+    accuracy?: number;
+    balanced_accuracy?: number;
+    macro_precision?: number;
+    macro_recall?: number;
+    macro_f1?: number;
+    confusion_matrix?: { labels: string[]; counts: number[][] };
+    roc_auc?: number | null;
+    roc_auc_positive_class?: string | null;
+    mae?: number;
+    rmse?: number;
+    r2?: number;
+  };
+  duration_seconds: number;
+  software_versions: Record<string, string>;
+  method_notes: string[];
+};
+
 const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000"
 ).replace(/\/+$/, "");
@@ -484,6 +646,40 @@ export async function applyDatasetCleaning(
     },
   );
   return readResponse<CleaningApplyResult>(response);
+}
+
+
+export async function getDatasetProfile(datasetId: number): Promise<DatasetProfile> {
+  const response = await fetch(`${API_BASE_URL}/api/datasets/${datasetId}/profile`, {
+    cache: "no-store",
+  });
+  return readResponse<DatasetProfile>(response);
+}
+
+export async function assessDatasetReadiness(
+  datasetId: number,
+  request: MLReadinessRequest,
+): Promise<MLReadinessReport> {
+  const response = await fetch(`${API_BASE_URL}/api/datasets/${datasetId}/ml-readiness`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+    cache: "no-store",
+  });
+  return readResponse<MLReadinessReport>(response);
+}
+
+export async function trainBaselineModel(
+  datasetId: number,
+  request: BaselineModelRequest,
+): Promise<BaselineModelReport> {
+  const response = await fetch(`${API_BASE_URL}/api/datasets/${datasetId}/baseline-model`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+    cache: "no-store",
+  });
+  return readResponse<BaselineModelReport>(response);
 }
 
 export async function uploadDataset(file: File): Promise<Dataset> {
