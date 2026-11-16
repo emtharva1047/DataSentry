@@ -208,12 +208,12 @@ export default function CleaningPanel({ dataset }: { dataset: Dataset | null }) 
     setError(null);
     try {
       const result = await applyDatasetCleaning(dataset.id, request);
-      setApplied(result);
       setPreview(null);
       setPreviewReviewed(false);
       const updatedVersions = await getDatasetVersions(dataset.id);
       setVersions(updatedVersions);
       changeBaseVersion(result.version.id);
+      setApplied(result);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "The cleaned version could not be created.");
     } finally {

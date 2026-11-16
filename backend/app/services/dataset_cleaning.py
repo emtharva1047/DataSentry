@@ -14,9 +14,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..models import Dataset, DatasetVersion
+from ..storage import VERSIONS_DIR
 from . import dataset_ingestion
-
-VERSIONS_DIR = dataset_ingestion.BACKEND_DIR / "versions"
 PREVIEW_ROW_LIMIT = 10
 PREVIEW_CELL_LIMIT = 10
 

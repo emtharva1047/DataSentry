@@ -1,0 +1,75 @@
+name: Full-stack browser E2E
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "README.md"
+      - "ROADMAP.md"
+      - "docs/**"
+      - ".github/workflows/full-stack-e2e.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "README.md"
+      - "ROADMAP.md"
+      - "docs/**"
+      - ".github/workflows/full-stack-e2e.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-smoke:
+    name: Chromium upload-to-baseline workflow
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install backend dependencies
+        working-directory: backend
+        run: python -m pip install -r requirements.txt
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install --no-audit --no-fund
+      - name: Run frontend static checks
+        working-directory: frontend
+        run: |
+          npm run lint
+          npm run typecheck
+      - name: Build production frontend
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8000
+        run: npm run build
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Run full-stack browser workflow
+        working-directory: frontend
+        env:
+          CI: "true"
+        run: npm run test:e2e
+      - name: Upload browser traces and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: datasentry-full-stack-e2e
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
