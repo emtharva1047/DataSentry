@@ -2,14 +2,14 @@
 
 ## Milestones
 
-- [ ] M1 — Foundation: FastAPI/SQLite APIs and Next.js dashboard are implemented; live browser-to-API verification remains.
-- [ ] M2 — Dataset ingestion: validated CSV backend upload, metadata persistence, list/detail APIs, and browser upload/library are implemented; end-to-end browser verification remains.
+- [x] M1 — Foundation: FastAPI/SQLite APIs and Next.js dashboard are implemented; health/overview, production frontend, and backend integration passed the full-stack Chromium workflow on 16 November 2026.
+- [x] M2 — Dataset ingestion: validated CSV upload, metadata persistence, list/detail APIs, and browser upload/library passed the full-stack Chromium workflow on 16 November 2026.
 - [x] M3 — Profiling: schema, missingness, uniqueness, summaries, numeric distributions, and correlations via the read-only profile API.
 - [ ] M4 — Quality rules: inferred missingness, exact duplicates, numeric type mismatch, and categorical whitespace/case findings are implemented; explicit schema/domain validation is available through a read-only API. Dashboard schema controls and live browser verification remain.
 - [x] M5 — Explainable DQS: completeness, validity, uniqueness, and consistency components expose numerators/denominators; inapplicable dimensions are excluded and active weights are renormalized.
-- [ ] M6 — Anomaly detection: read-only IQR, modified robust Z-score, and seeded Isolation Forest APIs plus configurable dashboard controls and evidence views are implemented; the first UCI Wine ground-truth evaluation is documented; broader references and less-extreme anomaly settings remain.
-- [ ] M7 — Safe cleaning: advisory recommendations, read-only preview, explicit apply, immutable versions, dashboard operation selection, bounded before/after row evidence, review acknowledgement, version history, DQS comparison, numeric summary deltas, aligned histograms, and Pearson correlation deltas are implemented; live browser workflow verification remains.
-- [ ] M8 — ML readiness: deterministic target, imbalance, leakage, duplicate-split, redundancy, and size diagnostics are implemented at `POST /api/datasets/{id}/ml-readiness`. Seeded logistic-regression classification and Ridge regression baselines are implemented at `POST /api/datasets/{id}/baseline-model` with train-only preprocessing and holdout metrics. The dashboard now provides profile-driven target/feature selection, readiness findings, baseline execution, metrics, and confusion matrix; repeated-seed evaluation and the untouched-test corruption experiment remain.
+- [x] M6 — Anomaly detection: read-only IQR, modified robust Z-score, and seeded Isolation Forest APIs, configurable dashboard controls, evidence views, and the first UCI Wine ground-truth evaluation are implemented and browser-verified. Broader references and threshold sensitivity remain M9 research expansion.
+- [x] M7 — Safe cleaning: advisory recommendations, read-only preview, explicit apply, immutable versions, review acknowledgement, version history, DQS comparison, numeric summary deltas, aligned histograms, and Pearson correlation deltas passed the full-stack Chromium workflow on 16 November 2026.
+- [x] M8 — ML readiness and baselines: deterministic diagnostics, profile-driven target/feature selection, and logistic-regression classification plus Ridge regression are implemented with training-only preprocessing. Both task workflows, readiness, holdout metrics, and confusion-matrix rendering passed the full-stack Chromium workflow on 16 November 2026. Repeated-seed and corruption-condition model experiments remain M9 work.
 - [ ] M9 — Research lab: deterministic in-memory corruption, exact labels, defect-specific detector integration, and a multi-rate/multi-seed benchmark CLI are implemented. A reproducible UCI Wine reference workflow and clean-test downstream classification comparison are implemented and executed by GitHub Actions; the first UCI Wine artifact has been inspected and its detector/downstream classification results documented; larger mixed-type references, downstream regression/other corruption conditions, and final research reporting remain.
 - [ ] M10 — Hardening: tests, documentation, research report, demo, and deployment.
 
@@ -20,4 +20,4 @@ A milestone is complete only when its implementation is present, relevant checks
 
 ## Full-stack verification
 
-- [ ] Playwright Chromium smoke suite and CI workflow added; first end-to-end run pending. The suite covers upload, quality/schema/anomaly APIs, cleaning preview/apply, immutable version comparison, ML readiness, classification/regression baselines, and original-file fingerprint preservation.
+- [x] Playwright Chromium smoke suite passed on 16 November 2026: one test, one worker, 7.3 seconds, no retry. It covers upload/list/detail, quality/schema/anomaly, cleaning preview/apply, immutable version comparison, ML readiness, classification/regression baselines, and original-file fingerprint preservation.
