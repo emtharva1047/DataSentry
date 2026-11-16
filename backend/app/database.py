@@ -1,11 +1,11 @@
 """SQLite engine, sessions, and additive schema migration."""
 from collections.abc import Generator
-from pathlib import Path
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-BACKEND_DIR = Path(__file__).resolve().parents[1]
-DATABASE_PATH = BACKEND_DIR / "datasentry.db"
+from .storage import DATA_DIR
+
+DATABASE_PATH = DATA_DIR / "datasentry.db"
 DATABASE_URL = f"sqlite:///{DATABASE_PATH.as_posix()}"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
@@ -15,6 +15,7 @@ class Base(DeclarativeBase):
 
 def initialize_database() -> None:
     """Create tables and add columns to SQLite files from earlier prototypes."""
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
     columns = {column["name"] for column in inspect(engine).get_columns("datasets")}
     migrations = {

@@ -41,3 +41,8 @@ For a different backend URL, edit `NEXT_PUBLIC_API_BASE_URL` in `.env.local` and
 - `npm run build` — production build
 
 The dashboard implements API connection status, dataset counts, dataset listing, validated CSV upload, an interactive DQS report, and numerical anomaly review. For each dataset, run a quality check or anomaly scan. The anomaly panel supports IQR, modified robust Z-score, and Isolation Forest with configurable parameters, bounded row evidence, numeric-column eligibility diagnostics, and reproducibility details. Start the FastAPI backend locally before using the dashboard.
+
+
+## Full-stack browser verification
+
+Install Chromium once with `npx playwright install chromium`, then run `npm run test:e2e` from this directory. Playwright starts the production Next.js server and a FastAPI service with an isolated SQLite/upload/version root at `backend/.e2e-data/`. Set `DATASENTRY_DATA_DIR` to override the backend runtime data root. The smoke test exercises upload, quality/schema/anomaly checks, cleaning preview/apply, version comparison, ML readiness, and classification/regression baselines.

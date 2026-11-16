@@ -11,9 +11,7 @@ import pandas as pd
 from pandas.errors import EmptyDataError, ParserError
 from sqlalchemy.orm import Session
 from ..models import Dataset
-
-BACKEND_DIR = Path(__file__).resolve().parents[2]
-UPLOAD_DIR = BACKEND_DIR / "uploads"
+from ..storage import UPLOAD_DIR
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_ROWS = 100_000
 MAX_COLUMNS = 200

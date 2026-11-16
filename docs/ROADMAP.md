@@ -73,3 +73,8 @@ Keep CSV only, SQLite, one classifier and one regressor. Defer role-based access
 - The baseline action exposes the configured holdout fraction and random seed and displays task-appropriate metrics, classification confusion counts, split sizes, preprocessing fit scope, software versions, and source fingerprint.
 - The UI does not claim that readiness heuristics prove absence of leakage or that one holdout is a general performance estimate.
 - Live browser-to-FastAPI verification and repeated-seed model evaluation remain outstanding.
+
+
+## Full-stack verification increment (16 November 2026)
+
+A Playwright Chromium workflow runs the production Next.js server against a separate FastAPI/SQLite process. Its browser journey uploads a deterministic CSV, verifies metadata and original-file fingerprint handling, exercises quality and anomaly review, explicit schema validation, cleaning preview/apply, immutable version lineage and DQS comparison, ML-readiness diagnostics, and classification/regression baselines. The first CI execution is pending; milestone completion must wait for that workflow to pass.

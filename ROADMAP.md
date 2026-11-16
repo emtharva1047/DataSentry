@@ -16,3 +16,8 @@
 ## Definition of done
 
 A milestone is complete only when its implementation is present, relevant checks pass, user-facing behavior is documented, and research claims are supported by reproducible evidence.
+
+
+## Full-stack verification
+
+- [ ] Playwright Chromium smoke suite and CI workflow added; first end-to-end run pending. The suite covers upload, quality/schema/anomaly APIs, cleaning preview/apply, immutable version comparison, ML readiness, classification/regression baselines, and original-file fingerprint preservation.

@@ -230,3 +230,8 @@ See [docs/ROADMAP.md](docs/ROADMAP.md), [docs/RESEARCH_PLAN.md](docs/RESEARCH_PL
 ## License
 
 MIT.
+
+
+## Full-stack browser verification
+
+The `Full-stack browser E2E` workflow builds the production Next.js frontend and runs it against a real FastAPI/SQLite process in Chromium. The deterministic browser journey verifies upload/list/detail metadata, quality assessment, schema validation, anomaly review, cleaning preview and explicit apply, immutable version/DQS comparison, ML readiness, and classification/regression baseline execution. It asserts that the original upload fingerprint remains unchanged and that baseline preprocessing is fitted only on training rows. Run locally with `npx playwright install chromium` followed by `npm run test:e2e` from `frontend/`; Playwright starts both services and uses the isolated `backend/.e2e-data/` root.
