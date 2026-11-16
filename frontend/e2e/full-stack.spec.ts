@@ -1,7 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
 const apiBase = "http://127.0.0.1:8000";
-const filename = "datasentry-e2e.csv";
+const filename = "datasentry-e2e-" + randomUUID() + ".csv";
 
 function buildCsv(): string {
   const rows = ["record_id,age,income,city,segment,score"];
@@ -94,7 +95,7 @@ test("browser completes the upload-to-baseline workflow against FastAPI", async 
   );
   await page.getByRole("button", { name: "Confirm and create new dataset version" }).click();
   const applyResponse = await applyResponsePromise;
-  expect(applyResponse.status()).toBe(200);
+  expect(applyResponse.status()).toBe(201);
   await expect(page.getByText("Version 1 created successfully")).toBeVisible();
   await expect(page.getByText("Version DQS")).toBeVisible();
 
