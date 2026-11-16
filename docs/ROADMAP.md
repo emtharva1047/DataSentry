@@ -17,7 +17,7 @@ The project is scoped for one developer. Prioritize a working end-to-end researc
 
 ## Week 2 — Profiling and quality detection (Days 8–14)
 - [x] Read-only column profiling and summary endpoint (`GET /api/datasets/{id}/profile`).
-- [ ] Missingness, duplicate, schema/domain, and category inconsistency quality rules with issue evidence. Missingness, exact duplicates, inferred numeric type mismatch, and categorical whitespace/case findings are implemented. Explicit schema/domain validation is now available at `POST /api/datasets/{id}/quality/validate`; dashboard schema controls and live browser verification remain.
+- [ ] Missingness, duplicate, schema/domain, and category inconsistency quality rules with issue evidence. Missingness, exact duplicates, inferred numeric type mismatch, and categorical whitespace/case findings are implemented. Explicit schema/domain validation is available at `POST /api/datasets/{id}/quality/validate` and passed the full-stack browser workflow. Interactive dashboard schema-authoring controls are intentionally deferred as a documented scope cut.
 - [x] Dashboard quality report viewer with overall DQS, component denominators, severity counts, issue messages, bounded row evidence, and detector notes.
 - [x] Explainable DQS with explicit denominators and active-weight normalization.
 - [x] Quality endpoint reports issue evidence, detector code, severity, affected counts, and one-based data-row numbers.
