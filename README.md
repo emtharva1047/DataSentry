@@ -252,3 +252,6 @@ python -m scripts.run_bike_sharing_regression_experiment --rates 0.01,0.05,0.10 
 ```
 
 The GitHub Actions workflow publishes the full JSON report as a 30-day artifact. The experiment is a single chronological holdout with a Ridge baseline, not rolling-origin cross-validation or tuned model selection.
+
+
+The first measured UCI Bike Sharing regression results (17 November 2026) are recorded in [docs/RESEARCH_RESULTS.md](docs/RESEARCH_RESULTS.md), with the full three-rate/three-seed JSON artifact linked there. The results show mixed effects rather than a consistent downstream benefit from the production cleaning policy.
