@@ -71,7 +71,7 @@ def test_bike_reference_rejects_archive_without_hour_csv():
 
 def test_bike_regression_runs_three_seeds_with_untouched_future_test(monkeypatch):
     payload = _zip(_source())
-    monkeypatch.setattr(module, "_download_archive", lambda: payload)
+    monkeypatch.setattr(module, "build_bike_sharing_reference", lambda: module._build_from_archive(payload, minimum_rows=30, retrieval_mode="provided_archive"))
     report = module.run_bike_sharing_regression_experiment(
         rates=(0.05,), seeds=(42, 123, 2026), test_size=0.25,
     )
