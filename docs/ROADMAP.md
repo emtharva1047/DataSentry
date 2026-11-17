@@ -83,8 +83,11 @@ A Playwright Chromium workflow runs the production Next.js server against a sepa
 
 ## Additional mixed-type downstream regression experiment
 
-- [ ] UCI Bike Sharing hourly reference loader and provenance validation (dataset 275, CC BY 4.0, DOI 10.24432/C5W894); first public-reference workflow execution pending.
-- [ ] Chronological 75/25 holdout with the final future partition kept untouched.
-- [ ] Exclude instant/date identifiers and direct target components casual/registered; document the derived day_index and semantic categorical/numeric feature declarations.
-- [ ] Inject missingness into training features only at 1%, 5%, and 10%; compare clean, corrupted, and production median/mode-cleaned training with Ridge regression.
-- [ ] Aggregate MAE, RMSE, R², and runtime across seeds 42, 123, and 2026; publish the full JSON artifact.
+- [x] UCI Bike Sharing hourly reference loader and provenance validation (dataset 275, CC BY 4.0, DOI 10.24432/C5W894); 17,379-row source downloaded and validated in GitHub Actions.
+- [x] Chronological 75/25 holdout with the final 4,345-row future partition kept untouched; identical test SHA-256 across all nine seed/rate runs.
+- [x] Exclude instant/date identifiers and direct target components casual/registered; document the derived day_index and semantic categorical/numeric feature declarations.
+- [x] Inject missingness into training features only at 1%, 5%, and 10%; compare clean, corrupted, and production median/mode-cleaned training with Ridge regression.
+- [x] Aggregate MAE, RMSE, R², and runtime across seeds 42, 123, and 2026; publish the full JSON artifact and measured results in docs/RESEARCH_RESULTS.md.
+
+
+The first UCI Bike Sharing workflow completed successfully on 17 November 2026 (GitHub Actions run 44001202119). The experiment ran three rates × three seeds × three training conditions (27 Ridge fits), with no skipped runs. The full artifact and its hashes are recorded in docs/RESEARCH_RESULTS.md. This completes the initial downstream-regression slice, not the full M9 research milestone.
