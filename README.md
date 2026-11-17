@@ -235,3 +235,20 @@ MIT.
 ## Full-stack browser verification
 
 The `Full-stack browser E2E` workflow builds the production Next.js frontend and runs it against a real FastAPI/SQLite process in Chromium. The deterministic browser journey verifies upload/list/detail metadata, quality assessment, schema validation, anomaly review, cleaning preview and explicit apply, immutable version/DQS comparison, ML readiness, and classification/regression baseline execution. It asserts that the original upload fingerprint remains unchanged and that baseline preprocessing is fitted only on training rows. Run locally with `npx playwright install chromium` followed by `npm run test:e2e` from `frontend/`; Playwright starts both services and uses the isolated `backend/.e2e-data/` root.
+
+
+## UCI Bike Sharing downstream regression experiment
+
+DataSentry includes a reproducible mixed-type regression experiment using the hourly UCI Bike Sharing dataset (dataset 275, DOI 10.24432/C5W894, CC BY 4.0). The loader downloads the official ZIP archive, validates the source schema and the identity `cnt = casual + registered`, sorts records by the source `instant` field, and derives a documented `day_index` from `dteday`.
+
+The model excludes `instant`, `dteday`, `casual`, and `registered`; the latter two are direct components of the target and would leak the answer. Eight coded calendar/weather fields are treated as categorical, while temperature, apparent temperature, humidity, wind speed, and the derived day index are numeric.
+
+The downstream experiment uses a chronological 75/25 holdout. It injects missingness into training features only, compares clean, corrupted, and production-cleaned training with Ridge regression, fits preprocessing independently on each training condition, and leaves the future test partition unchanged. Seeds 42, 123, and 2026 vary the corruption selection; they do not change the chronological split.
+
+Run from `backend/`:
+
+```powershell
+python -m scripts.run_bike_sharing_regression_experiment --rates 0.01,0.05,0.10 --seeds 42,123,2026 --test-size 0.25 --alpha 1.0 --output /tmp/uci-bike-sharing-regression.json
+```
+
+The GitHub Actions workflow publishes the full JSON report as a 30-day artifact. The experiment is a single chronological holdout with a Ridge baseline, not rolling-origin cross-validation or tuned model selection.

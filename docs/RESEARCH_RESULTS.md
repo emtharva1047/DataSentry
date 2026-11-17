@@ -111,3 +111,19 @@ Accuracy is 0.681481 ± 0.033945 and balanced accuracy is 0.622222 ± 0.030316 i
 - Python `tracemalloc` does not capture all native memory allocations.
 
 The next research increment should use a larger mixed-type public dataset, add downstream regression and other training-only corruption conditions, and compare multiple feature sets before drawing broader conclusions.
+
+
+## UCI Bike Sharing downstream regression experiment
+
+**Status at implementation commit:** experiment code and offline fixture tests added; first public-reference GitHub Actions execution pending. No downstream regression metrics are claimed in this section until the workflow artifact has been inspected.
+
+- Dataset: UCI Bike Sharing hourly, dataset 275, DOI 10.24432/C5W894, CC BY 4.0.
+- Target: cnt; casual and registered excluded because they sum directly to cnt.
+- Features: eight semantic categorical fields, four original continuous fields, and derived day_index.
+- Split: chronological 75/25 holdout; final 25% is an untouched future test partition.
+- Corruption: training-feature missingness at 1%, 5%, and 10%; target and test rows remain unchanged.
+- Conditions: clean training, corrupted training, and production median/mode-cleaned training.
+- Model: Ridge regression, alpha 1.0; preprocessing fitted separately on each training condition only.
+- Seeds: 42, 123, and 2026 vary corruption selection while retaining the same temporal split.
+- Metrics: MAE, RMSE, R², fit runtime, paired cleaned-minus-corrupted deltas, mean, and sample standard deviation (ddof=1).
+- Known limits: one chronological split, one baseline model, no rolling-origin validation, and one corruption family.

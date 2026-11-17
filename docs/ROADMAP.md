@@ -79,3 +79,12 @@ Keep CSV only, SQLite, one classifier and one regressor. Defer role-based access
 ## Full-stack verification increment (16 November 2026)
 
 A Playwright Chromium workflow runs the production Next.js server against a separate FastAPI/SQLite process. Its browser journey uploads a deterministic CSV, verifies metadata and original-file fingerprint handling, exercises quality and anomaly review, explicit schema validation, cleaning preview/apply, immutable version lineage and DQS comparison, ML-readiness diagnostics, and classification/regression baselines. The final PR-head CI execution passed on 16 November 2026: one Chromium test completed in 7.3 seconds without a retry. Backend tests (97), frontend lint/typecheck/build, and the browser workflow all passed. The test asserted original-upload SHA-256 preservation and training-only preprocessing for classification and regression.
+
+
+## Additional mixed-type downstream regression experiment
+
+- [ ] UCI Bike Sharing hourly reference loader and provenance validation (dataset 275, CC BY 4.0, DOI 10.24432/C5W894); first public-reference workflow execution pending.
+- [ ] Chronological 75/25 holdout with the final future partition kept untouched.
+- [ ] Exclude instant/date identifiers and direct target components casual/registered; document the derived day_index and semantic categorical/numeric feature declarations.
+- [ ] Inject missingness into training features only at 1%, 5%, and 10%; compare clean, corrupted, and production median/mode-cleaned training with Ridge regression.
+- [ ] Aggregate MAE, RMSE, R², and runtime across seeds 42, 123, and 2026; publish the full JSON artifact.
