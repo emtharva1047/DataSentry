@@ -66,6 +66,7 @@ def test_regression_experiment_rejects_missing_and_non_numeric_targets():
     with pytest.raises(ValueError, match="missing"):
         run_regression_corruption_experiment(frame, target_column="target", seeds=(42, 123, 2026))
     frame = _frame()
+    frame["target"] = frame["target"].astype(object)
     frame.loc[0, "target"] = "invalid"
     with pytest.raises(ValueError, match="finite numeric"):
         run_regression_corruption_experiment(frame, target_column="target", seeds=(42, 123, 2026))
