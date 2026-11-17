@@ -111,3 +111,70 @@ Accuracy is 0.681481 ± 0.033945 and balanced accuracy is 0.622222 ± 0.030316 i
 - Python `tracemalloc` does not capture all native memory allocations.
 
 The next research increment should use a larger mixed-type public dataset, add downstream regression and other training-only corruption conditions, and compare multiple feature sets before drawing broader conclusions.
+
+
+## UCI Bike Sharing downstream regression experiment
+
+**Execution date:** 17 November 2026. The public-reference workflow completed successfully; the artifact was downloaded and its JSON payload inspected before recording the results below.
+
+- Dataset: UCI Bike Sharing hourly, dataset 275, DOI 10.24432/C5W894, CC BY 4.0.
+- Target: cnt; casual and registered excluded because they sum directly to cnt.
+- Features: eight semantic categorical fields, four original continuous fields, and derived day_index.
+- Split: chronological 75/25 holdout; final 25% is an untouched future test partition.
+- Corruption: training-feature missingness at 1%, 5%, and 10%; target and test rows remain unchanged.
+- Conditions: clean training, corrupted training, and production median/mode-cleaned training.
+- Model: Ridge regression, alpha 1.0; preprocessing fitted separately on each training condition only.
+- Seeds: 42, 123, and 2026 vary corruption selection while retaining the same temporal split.
+- Metrics: MAE, RMSE, R², fit runtime, paired cleaned-minus-corrupted deltas, mean, and sample standard deviation (ddof=1).
+- Known limits: one chronological split, one baseline model, no rolling-origin validation, and one corruption family.
+
+
+### Execution provenance
+
+- **Workflow:** [Bike Sharing Regression Research run 44001202119](https://github.com/emtharva1047/DataSentry/actions/runs/44001202119).
+- **Artifact:** [uci-bike-sharing-regression](https://github.com/emtharva1047/DataSentry/actions/runs/44001202119/artifacts/14291533864), retained for 30 days.
+- **Artifact ZIP SHA-256:** `820a85eaf483620b77bdbd3a4ee6fe30e3a922b29cc1065250900d12ad5873b6`.
+- **JSON payload SHA-256:** `79206a8c2312f8111805047e5469f9d879fa2edbe09df01fd8f43104b5e20525`.
+- **Dataset:** 17,379 hourly rows, 1 January 2011 through 31 December 2012; 17 source columns; 13 model features plus target.
+- **Features:** 8 semantic categorical features and 5 numeric features (four original continuous fields plus derived day_index).
+- **Target:** cnt; casual and registered excluded as direct target components.
+- **Source archive SHA-256:** `b70182d0d0508e9abbb79306ce5c0cec34869000f8220175ac83d11dbe845401`.
+- **hour.csv SHA-256:** `e03de4ee4ef4dc376ac6e04bf829673c6269e8eba5c60fa121640fa2f829504f`.
+- **Analysis-frame SHA-256:** `8ff14f833673fbad9c35ec3267c5c23335f98ba2b586e63bba67f98a755ee804`.
+- **Software:** Python 3.12.16, pandas 2.3.3, NumPy 2.5.5, scikit-learn 1.9.1.
+- **Split:** chronological 75/25; 13,034 training rows and 4,345 future test rows. All nine rate/seed runs used the same clean test fingerprint: `2f9613a31116dbdb6e0e272c123778ed3a45e62783393ead8df8c14cb7aef309`; every run recorded `test_partition_untouched=true`.
+- **Runs:** seeds 42, 123, 2026; three rates; 27 total model fits across clean, corrupted, and cleaned-corrupted conditions. Each seed injected 1,695, 8,473, and 16,945 missing training cells at 1%, 5%, and 10%, respectively.
+
+### Measured regression metrics
+
+Values are mean ± sample standard deviation (ddof=1) across the three corruption seeds. The clean condition is identical across seeds because the chronological split and deterministic Ridge model are fixed.
+
+| Missingness | Training condition | MAE ↓ | RMSE ↓ | R² ↑ |
+|---:|---|---:|---:|---:|
+| 1% | Clean | 100.722558 ± 0.000000 | 135.412598 ± 0.000000 | 0.621143 ± 0.000000 |
+| 1% | Corrupted | 100.877907 ± 0.157496 | 135.394009 ± 0.027540 | 0.621248 ± 0.000154 |
+| 1% | Cleaned-corrupted | 101.240666 ± 0.247452 | 136.231009 ± 1.069106 | 0.616535 ± 0.006030 |
+| 5% | Clean | 100.722558 ± 0.000000 | 135.412598 ± 0.000000 | 0.621143 ± 0.000000 |
+| 5% | Corrupted | 101.022371 ± 0.066836 | 134.996090 ± 0.103672 | 0.623470 ± 0.000578 |
+| 5% | Cleaned-corrupted | 101.681875 ± 0.723305 | 135.849800 ± 0.523738 | 0.618689 ± 0.002937 |
+| 10% | Clean | 100.722558 ± 0.000000 | 135.412598 ± 0.000000 | 0.621143 ± 0.000000 |
+| 10% | Corrupted | 101.202511 ± 0.297523 | 134.579091 ± 0.112693 | 0.625793 ± 0.000626 |
+| 10% | Cleaned-corrupted | 101.041455 ± 0.377982 | 134.776204 ± 0.234142 | 0.624695 ± 0.001303 |
+
+### Paired production-cleaning effect
+
+The following values are cleaned-corrupted minus corrupted on the same seed and test partition. Positive MAE/RMSE means the cleaned condition is worse; negative R² means the cleaned condition is worse.
+
+| Missingness | ΔMAE | ΔRMSE | ΔR² |
+|---:|---:|---:|---:|
+| 1% | +0.362759 ± 0.231459 | +0.837001 ± 1.054259 | -0.004713 ± 0.005947 |
+| 5% | +0.659504 ± 0.783233 | +0.853710 ± 0.616858 | -0.004781 ± 0.003456 |
+| 10% | -0.161056 ± 0.206862 | +0.197114 ± 0.124674 | -0.001097 ± 0.000695 |
+
+### Interpretation and limits
+
+1. The production cleaning condition did not consistently improve the regression metrics. At 1% and 5%, all three aggregate metrics were worse than the corrupted-training condition. At 10%, MAE improved slightly, but RMSE and R² were worse.
+2. The corrupted condition itself produced mixed metrics relative to clean training: MAE increased at each rate, while RMSE decreased and R² increased. This is not evidence that missingness improves the model; it shows that this single fixed future holdout and this feature/model combination do not exhibit a simple monotonic response.
+3. The corrupted model's pipeline uses its training-fitted constant sentinel for missing categorical values; the cleaned-corrupted condition uses DataSentry's production mode imputation for categorical fields and median imputation for numeric fields. The comparison therefore evaluates those two explicit missing-value policies.
+4. The three seeds vary training-cell selection only. They are not three independent temporal test periods. The clean baseline standard deviation of zero is a consequence of the fixed split and deterministic Ridge fit, not evidence of zero sampling uncertainty.
+5. This is one chronological holdout, one fixed Ridge alpha, and one corruption family. It does not establish performance across seasons, other datasets, other regression models, or other defects. Rolling-origin validation and broader missingness mechanisms remain necessary.
