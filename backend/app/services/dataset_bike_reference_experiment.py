@@ -81,14 +81,16 @@ def _build_from_archive(
         raise ValueError("the UCI reference contains missing values in required columns")
 
     instant = pd.to_numeric(source["instant"], errors="coerce").to_numpy(dtype=float)
-    if not np.isfinite(instant).all() or len(np.unique(instant)) != len(instant):
-        raise ValueError("instant must contain unique finite record identifiers")
+    if not np.isfinite(instant).all() or not np.equal(instant, np.floor(instant)).all() or len(np.unique(instant)) != len(instant):
+        raise ValueError("instant must contain unique finite integer record identifiers")
     source = source.assign(_instant_numeric=instant).sort_values("_instant_numeric", kind="stable").reset_index(drop=True)
     if not np.all(np.diff(source["_instant_numeric"].to_numpy(dtype=float)) > 0):
         raise ValueError("instant must define a strictly increasing chronological order")
     dates = pd.to_datetime(source["dteday"], errors="coerce")
     if dates.isna().any():
         raise ValueError("dteday contains an invalid date")
+    if not dates.is_monotonic_increasing:
+        raise ValueError("dteday must be chronological when ordered by instant")
     day_index = (dates - dates.min()).dt.days.astype(int)
 
     numeric_source = {}
