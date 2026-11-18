@@ -124,7 +124,7 @@ Use base_version_id to branch from a prior immutable version; omit it or set it 
 
 Open the dataset library and choose **Review cleaning** for a dataset. Select the original upload or a previously created immutable version as the base. Recommendations are advisory; choose only operations justified by the dataset context. Generate a read-only preview, inspect row counts and bounded before/after cell evidence, acknowledge the preview, and then explicitly create a new version. The dashboard refreshes the version history and selects the new version as the next base. The original upload and prior versions are retained.
 
-The dashboard compares row counts, sampled cell changes, DQS components, numeric summaries, aligned histograms, and defined Pearson correlation pairs for up to 20 numeric columns. Categorical frequency distributions are not yet compared, and live browser-to-FastAPI workflow verification remains pending. Lowercase normalization remains high-risk and is not selected by default.
+The dashboard compares row counts, sampled cell changes, DQS components, numeric summaries, aligned histograms, and defined Pearson correlation pairs for up to 20 numeric columns. Categorical frequency distributions are not compared in the current version; live browser-to-FastAPI workflow verification passed in Playwright Chromium on 16 November 2026. Lowercase normalization remains high-risk and is not selected by default.
 
 
 ## Baseline model evaluation
