@@ -91,3 +91,13 @@ A Playwright Chromium workflow runs the production Next.js server against a sepa
 
 
 The first UCI Bike Sharing workflow completed successfully on 17 November 2026 (GitHub Actions run 44001202119). The experiment ran three rates × three seeds × three training conditions (27 Ridge fits), with no skipped runs. The full artifact and its hashes are recorded in docs/RESEARCH_RESULTS.md. This completes the initial downstream-regression slice, not the full M9 research milestone.
+
+
+## 18 November 2026 — Mixed-type Bike Sharing detector benchmark
+
+- Added a public-reference adapter for the UCI Bike Sharing hourly dataset.
+- Converted all eight integer-coded calendar/weather predictors to explicit semantic labels before synthetic corruption, while retaining the five continuous predictors as numeric. This prevents numeric-looking category codes from being misclassified by the shared numeric-inference heuristic.
+- Excluded the target and direct target components from detector input; retained the dataset's existing source/analysis fingerprints and added a detector-frame SHA-256.
+- Added a CLI and GitHub Actions workflow for the existing defect-specific benchmark engine. The workflow requests 1%, 5%, and 10% corruption, seeds 42/123/2026, and the production IQR, robust-Z, and Isolation Forest settings.
+- The benchmark retains cell-level metrics for missingness, categorical inconsistency, and invalid values, and row-level metrics for duplicates and numerical anomalies. All seed results and skipped reasons remain visible; no aggregate is emitted for incomplete runs.
+- The benchmark run and measured results are pending its first successful GitHub Actions execution. Python-traced memory remains a partial allocation proxy, and categorical casefold matching can flag legitimate variants.
