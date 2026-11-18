@@ -49,7 +49,7 @@ def main() -> int:
     destination = args.output.expanduser().resolve()
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(
-        json.dumps(report, indent=2, ensure_ascii=False, allow_nan=False) + "\\n",
+        json.dumps(report, indent=2, ensure_ascii=False, allow_nan=False) + "\n",
         encoding="utf-8",
     )
 

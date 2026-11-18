@@ -64,7 +64,7 @@ CATEGORY_LABELS: dict[str, dict[int, str]] = {
 
 
 def _frame_sha256(frame: pd.DataFrame) -> str:
-    payload = frame.to_csv(index=False, lineterminator="\\n").encode("utf-8")
+    payload = frame.to_csv(index=False, lineterminator="\n").encode("utf-8")
     return sha256(payload).hexdigest()
 
 
