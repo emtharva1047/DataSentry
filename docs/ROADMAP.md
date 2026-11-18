@@ -55,7 +55,8 @@ The ML-readiness API is `POST /api/datasets/{id}/ml-readiness`. It requires a ta
 - [x] Add a reproducible UCI Wine public-reference script and GitHub Actions workflow for detector rates 1%, 5%, and 10% across seeds 42, 123, and 2026; publish the full JSON report as a workflow artifact.
 - [x] Implement downstream classification comparison across clean, corrupted, and cleaned-corrupted training conditions; split clean data first, corrupt training features only, reuse the untouched clean test set within each seed, and fit preprocessing on each training condition only.
 - [x] Inspect the first UCI Wine artifact and record measured three-seed detector and downstream classification results, skipped cases, and limitations in docs/RESEARCH_RESULTS.md.
-- [ ] Extend evaluation to a larger mixed-type public dataset and add downstream regression plus training-only missingness, invalid-value, duplicate, and numerical-anomaly conditions.
+- [x] Extend detector evaluation to the larger mixed-type UCI Bike Sharing reference; map integer-coded categorical predictors to semantic labels and execute the applicable five-defect benchmark at 1%, 5%, and 10% across seeds 42, 123, and 2026 (21 detector/rate combinations, 63 detector-seed runs, no skipped runs). Measured results are in docs/RESEARCH_RESULTS.md.
+- [ ] Extend downstream regression to training-only invalid-value, duplicate, categorical inconsistency, and numerical-anomaly conditions; improve categorical detector precision and evaluate Isolation Forest contamination sensitivity.
 - [x] ML dashboard integration.
 - [ ] Repeated-seed baseline evaluation, demo script, broader mixed-type/regression experiments, and final delivery report.
 - [x] Full browser-to-FastAPI verification (Playwright Chromium, 16 November 2026).
@@ -73,7 +74,7 @@ Keep CSV only, SQLite, one classifier and one regressor. Defer role-based access
 - The workspace calls the existing read-only readiness endpoint before enabling baseline training; blockers disable training while warnings remain visible for review.
 - The baseline action exposes the configured holdout fraction and random seed and displays task-appropriate metrics, classification confusion counts, split sizes, preprocessing fit scope, software versions, and source fingerprint.
 - The UI does not claim that readiness heuristics prove absence of leakage or that one holdout is a general performance estimate.
-- Repeated-seed model evaluation, broader reference datasets, downstream regression, demo script, and final delivery report remain outstanding.
+- Repeated-seed baseline uncertainty, additional downstream regression corruption families, demo script, and final delivery report remain outstanding.
 
 
 ## Full-stack verification increment (16 November 2026)
@@ -100,4 +101,4 @@ The first UCI Bike Sharing workflow completed successfully on 17 November 2026 (
 - Excluded the target and direct target components from detector input; retained the dataset's existing source/analysis fingerprints and added a detector-frame SHA-256.
 - Added a CLI and GitHub Actions workflow for the existing defect-specific benchmark engine. The workflow requests 1%, 5%, and 10% corruption, seeds 42/123/2026, and the production IQR, robust-Z, and Isolation Forest settings.
 - The benchmark retains cell-level metrics for missingness, categorical inconsistency, and invalid values, and row-level metrics for duplicates and numerical anomalies. All seed results and skipped reasons remain visible; no aggregate is emitted for incomplete runs.
-- The benchmark run and measured results are pending its first successful GitHub Actions execution. Python-traced memory remains a partial allocation proxy, and categorical casefold matching can flag legitimate variants.
+- The benchmark completed successfully on 18 November 2026 (21 detector/rate combinations, 63 detector-seed runs, no skipped runs). Missingness, duplicate, and invalid-value rules achieved 1.0 precision/recall/F1 in the controlled matching-rule setup; categorical consistency had recall 1.0 but precision 0.010–0.100; IQR and robust Z-score had recall 1.0; fixed-contamination Isolation Forest recall fell to 0.221 and 0.122 at 5% and 10%. Full results and limitations are in docs/RESEARCH_RESULTS.md. Python-traced memory remains a partial allocation proxy.
