@@ -1,0 +1,62 @@
+name: Bike Sharing Detector Research
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/app/services/dataset_bike_detector_experiment.py"
+      - "backend/app/services/dataset_benchmark.py"
+      - "backend/app/services/dataset_research.py"
+      - "backend/app/services/dataset_anomaly.py"
+      - "backend/scripts/run_bike_sharing_detector_benchmark.py"
+      - "backend/tests/test_dataset_bike_detector_experiment.py"
+      - ".github/workflows/bike-sharing-detector.yml"
+  pull_request:
+    paths:
+      - "backend/app/services/dataset_bike_detector_experiment.py"
+      - "backend/app/services/dataset_benchmark.py"
+      - "backend/app/services/dataset_research.py"
+      - "backend/app/services/dataset_anomaly.py"
+      - "backend/scripts/run_bike_sharing_detector_benchmark.py"
+      - "backend/tests/test_dataset_bike_detector_experiment.py"
+      - ".github/workflows/bike-sharing-detector.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bike-sharing-detectors:
+    name: UCI Bike Sharing mixed-type detector benchmark
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend dependencies
+        working-directory: backend
+        run: python -m pip install -r requirements.txt
+      - name: Run mixed-type detector experiments
+        working-directory: backend
+        run: >-
+          python -m scripts.run_bike_sharing_detector_benchmark
+          --rates 0.01,0.05,0.10
+          --seeds 42,123,2026
+          --n-estimators 100
+          --contamination 0.05
+          --iqr-multiplier 1.5
+          --robust-z-threshold 3.5
+          --output /tmp/uci-bike-sharing-detectors.json
+      - name: Upload reproducible detector report
+        uses: actions/upload-artifact@v4
+        with:
+          name: uci-bike-sharing-detector-benchmark
+          path: /tmp/uci-bike-sharing-detectors.json
+          if-no-files-found: error
+          retention-days: 30

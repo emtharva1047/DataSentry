@@ -105,7 +105,7 @@ Accuracy is 0.681481 ± 0.033945 and balanced accuracy is 0.622222 ± 0.030316 i
 - One derived categorical feature is used to exercise categorical detection; it is not an original UCI attribute.
 - Exact rule detectors are evaluated against synthetic labels generated from closely matching definitions, so their perfect scores are optimistic.
 - Numerical anomalies are deliberately extreme; subtler anomaly distributions are not tested.
-- Downstream evaluation covers classification and categorical inconsistency only. Regression, missingness, invalid-value, duplicate, and numerical-anomaly training-only comparisons remain outstanding.
+- The Wine-specific downstream evaluation covers classification and categorical inconsistency only. UCI Bike Sharing downstream regression under training-only missingness is reported separately below; regression experiments for invalid values, duplicates, categorical inconsistency, and numerical anomalies remain outstanding.
 - The categorical consistency rule needs more precise cell-level evidence to reduce false positives.
 - Isolation Forest contamination should be varied or calibrated against row-level anomaly prevalence.
 - Python `tracemalloc` does not capture all native memory allocations.
@@ -178,3 +178,86 @@ The following values are cleaned-corrupted minus corrupted on the same seed and 
 3. The corrupted model's pipeline uses its training-fitted constant sentinel for missing categorical values; the cleaned-corrupted condition uses DataSentry's production mode imputation for categorical fields and median imputation for numeric fields. The comparison therefore evaluates those two explicit missing-value policies.
 4. The three seeds vary training-cell selection only. They are not three independent temporal test periods. The clean baseline standard deviation of zero is a consequence of the fixed split and deterministic Ridge fit, not evidence of zero sampling uncertainty.
 5. This is one chronological holdout, one fixed Ridge alpha, and one corruption family. It does not establish performance across seasons, other datasets, other regression models, or other defects. Rolling-origin validation and broader missingness mechanisms remain necessary.
+
+
+## UCI Bike Sharing mixed-type detector benchmark
+
+**Execution date:** 18 November 2026. The final PR-head GitHub Actions workflow completed successfully; the job output and uploaded JSON artifact were inspected before recording these results.
+
+- Dataset: UCI Bike Sharing hourly, dataset 275, DOI 10.24432/C5W894, CC BY 4.0.
+- Detector reference: 17,379 rows and 13 predictors: eight semantic categorical fields and five numeric fields.
+- Target exclusion: `cnt`, `casual`, and `registered` are not detector inputs. `instant` and `dteday` are not predictors.
+- Category treatment: integer-coded source values are mapped to explicit season/year/month/hour/holiday/weekday/working-day/weather labels before corruption.
+- Clean-reference preflight: zero missing cells, exact duplicate rows, categorical whitespace/case findings, and invalid numeric cells. Statistical outliers are retained and may count as false positives.
+- Corruption rates: 1%, 5%, 10%; seeds: 42, 123, 2026.
+- Parameters: Isolation Forest 100 estimators, contamination 0.05; IQR multiplier 1.5; modified robust-Z threshold 3.5.
+- Coverage: five defect families and seven applicable detector adapters per rate (one each for missingness, duplicates, categorical inconsistency, invalid values; three for numerical anomalies), giving 21 detector/rate combinations and 63 detector-seed runs. No runs were skipped.
+- Evaluation units: cell-level for missingness, categorical inconsistency, and invalid values; row-level for duplicate occurrences and numerical anomalies.
+- Metrics: per-seed TP/FP/TN/FN, precision, recall, F1, accuracy, prediction runtime, and Python tracemalloc peak-allocation delta. Means and sample standard deviations (ddof=1) are retained for all completed three-seed experiments.
+- Software: Python 3.12.16, pandas 2.3.3, NumPy 2.5.5, scikit-learn 1.9.1.
+
+### Execution provenance
+
+- **Workflow:** [Bike Sharing Detector Research run 44221377880](https://github.com/emtharva1047/DataSentry/actions/runs/44221377880).
+- **Artifact:** [uci-bike-sharing-detector-benchmark](https://github.com/emtharva1047/DataSentry/actions/runs/44221377880/artifacts/14391430715), retained for 30 days.
+- **Artifact ZIP SHA-256:** `921d1a3c4188cc0d4db1a13a8c043b4e5561cae58e4e704e3316e85e82211589`.
+- **Source archive SHA-256:** `b70182d0d0508e9abbb79306ce5c0cec34869000f8220175ac83d11dbe845401`.
+- **hour.csv SHA-256:** `e03de4ee4ef4dc376ac6e04bf829673c6269e8eba5c60fa121640fa2f829504f`.
+- **Analysis-frame SHA-256:** `8ff14f833673fbad9c35ec3267c5c23335f98ba2b586e63bba67f98a755ee804`.
+- **Semantic detector-frame SHA-256:** `93a00e87165516e6001877fcbb6ed30cdc58d73150f5198a826af063efb708d4`.
+- **Detector frame:** 17,379 rows, 13 columns; eight categorical and five numeric predictors.
+
+### Detector precision, recall, and F1
+
+The values below are means across seeds 42, 123, and 2026. F1 includes its sample standard deviation. Full per-seed metrics and confusion counts are retained in the JSON artifact.
+
+| Defect / detector | Rate | Precision | Recall | F1 mean ± sample SD |
+|---|---:|---:|---:|---:|
+| Missingness rule | 1% | 1.000000 | 1.000000 | 1.000000 ± 0 |
+| Missingness rule | 5% | 1.000000 | 1.000000 | 1.000000 ± 0 |
+| Missingness rule | 10% | 1.000000 | 1.000000 | 1.000000 ± 0 |
+| Exact duplicate rule | 1% | 1.000000 | 1.000000 | 1.000000 ± 0 |
+| Exact duplicate rule | 5% | 1.000000 | 1.000000 | 1.000000 ± 0 |
+| Exact duplicate rule | 10% | 1.000000 | 1.000000 | 1.000000 ± 0 |
+| Numeric parseability rule | 1% | 1.000000 | 1.000000 | 1.000000 ± 0 |
+| Numeric parseability rule | 5% | 1.000000 | 1.000000 | 1.000000 ± 0 |
+| Numeric parseability rule | 10% | 1.000000 | 1.000000 | 1.000000 ± 0 |
+| Categorical consistency | 1% | 0.010005 | 1.000000 | 0.019812 ± 0 |
+| Categorical consistency | 5% | 0.050004 | 1.000000 | 0.095245 ± 0 |
+| Categorical consistency | 10% | 0.100007 | 1.000000 | 0.181830 ± 0.000002 |
+| IQR | 1% | 0.873714 | 1.000000 | 0.932601 ± 0.000745 |
+| IQR | 5% | 0.978796 | 1.000000 | 0.989284 ± 0.000531 |
+| IQR | 10% | 0.995046 | 1.000000 | 0.997517 ± 0.000045 |
+| Robust Z-score | 1% | 0.983010 | 1.000000 | 0.991432 ± 0.000371 |
+| Robust Z-score | 5% | 0.996782 | 1.000000 | 0.998389 ± 0.000145 |
+| Robust Z-score | 10% | 0.998781 | 1.000000 | 0.999390 ± 0.000107 |
+| Isolation Forest | 1% | 0.976602 | 1.000000 | 0.988159 ± 0.002227 |
+| Isolation Forest | 5% | 1.000000 | 0.221466 | 0.362621 ± 0.002259 |
+| Isolation Forest | 10% | 1.000000 | 0.122435 | 0.218159 ± 0.000385 |
+
+### Runtime and memory observations
+
+Mean prediction runtime ± sample SD across the three seeds (seconds):
+
+| Detector | 1% | 5% | 10% |
+|---|---:|---:|---:|
+| Missingness rule | 0.004844 ± 0.000174 | 0.005062 ± 0.000234 | 0.005294 ± 0.000388 |
+| Exact duplicate rule | 0.009373 ± 0.000052 | 0.009964 ± 0.000058 | 0.010605 ± 0.000266 |
+| Categorical consistency | 0.236091 ± 0.001858 | 0.244566 ± 0.000921 | 0.250910 ± 0.000525 |
+| Numeric parseability | 0.134266 ± 0.001088 | 0.182622 ± 0.002474 | 0.250200 ± 0.025757 |
+| IQR | 0.021511 ± 0.000152 | 0.088608 ± 0.000428 | 0.174289 ± 0.001729 |
+| Robust Z-score | 0.019070 ± 0.000142 | 0.085758 ± 0.001237 | 0.168994 ± 0.000448 |
+| Isolation Forest | 0.874620 ± 0.001702 | 0.893790 ± 0.000706 | 0.914021 ± 0.008002 |
+
+The artifact also records the mean and sample SD of Python-traced peak allocation for every detector/rate pair. This is a partial memory proxy and does not capture every native NumPy/scikit-learn allocation.
+
+### Interpretation and limits
+
+1. The missingness, duplicate, and numeric-parseability rules achieved perfect metrics because the controlled defects closely match the deterministic rules and the reference schema is known. These results are optimistic and are not estimates of unknown-schema real-world performance.
+2. The categorical consistency rule had recall 1.0 but very low precision (about 1%, 5%, and 10% at the corresponding injection rates). The production rule marks every value in a casefold-equivalent category group, so legitimate original category values are also flagged as false positives. This is the clearest detector weakness exposed by the larger mixed-type reference.
+3. IQR and robust Z-score detected every injected extreme row in this experiment. Their precision improved with corruption rate because injected extremes became a larger share of the flagged set. The synthetic anomalies are deliberately high values; subtler multivariate anomalies are not evaluated here.
+4. Isolation Forest retained high precision but recall dropped to 0.221 at 5% and 0.122 at 10%. The experiment fixes contamination at 5% while injecting anomalies at the cell level across five numeric columns; this does not hold row-level anomaly prevalence at 5%. The result motivates contamination-sensitivity experiments rather than a conclusion that Isolation Forest is generally inferior.
+5. The benchmark uses one dataset, one documented semantic mapping, fixed detector thresholds, and synthetic defects. The exact-label rule metrics are not independent evidence of generalization.
+6. Runtime excludes corruption generation and metric calculation. Python tracemalloc is not total process RSS and may omit native allocations.
+
+**Next experiments:** improve categorical cell-level evidence to reduce false positives; vary Isolation Forest contamination against measured row-level anomaly prevalence; evaluate subtler and multivariate anomalies; and add downstream regression conditions for invalid values, duplicates, and numerical anomalies with the future test partition untouched.
