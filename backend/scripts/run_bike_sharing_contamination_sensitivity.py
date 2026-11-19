@@ -62,6 +62,14 @@ def main() -> int:
         for experiment in sweep["experiments"]:
             if experiment["detector"] != "isolation_forest":
                 continue
+            if experiment["status"] != "completed":
+                summary.append({
+                    "contamination": sweep["contamination"],
+                    "rate": experiment["rate"],
+                    "status": experiment["status"],
+                    "skipped_runs": experiment["skipped_runs"],
+                })
+                continue
             metrics = experiment["aggregate"]["metrics"]
             prevalence = experiment["prevalence_aggregate"]["metrics"]
             summary.append({
@@ -81,6 +89,7 @@ def main() -> int:
         "status": report["status"],
         "dataset": report["dataset"],
         "configuration": report["configuration"],
+        "control_checks_passed": report["control_checks_passed"],
         "control_checks": report["control_checks"],
         "isolation_forest_summary": summary,
     }, indent=2, ensure_ascii=False, allow_nan=False))

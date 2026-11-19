@@ -130,14 +130,16 @@ def run_bike_sharing_contamination_sensitivity(
     ground-truth and predicted row prevalence are recorded for every seed.
     """
     selected_contaminations = _validate_contamination_values(contamination_values)
+    selected_rates = tuple(rates)
+    selected_seeds = tuple(seeds)
     frame, metadata = build_bike_sharing_detector_reference()
     sweep_results: list[dict[str, Any]] = []
 
     for contamination in selected_contaminations:
         benchmark = run_synthetic_detector_benchmark(
             frame,
-            rates=rates,
-            seeds=seeds,
+            rates=selected_rates,
+            seeds=selected_seeds,
             defects=("numerical_anomalies",),
             n_estimators=n_estimators,
             contamination=contamination,
@@ -157,15 +159,21 @@ def run_bike_sharing_contamination_sensitivity(
         })
 
     complete = all(item["status"] == "completed" for item in sweep_results)
-    control_checks = _control_invariance(sweep_results, rates)
+    control_checks = _control_invariance(sweep_results, selected_rates)
+    control_checks_passed = bool(control_checks) and all(
+        result["invariant_across_contamination"]
+        for detector_results in control_checks.values()
+        for result in detector_results.values()
+    )
     return {
         "schema_version": 1,
         "experiment": "uci_bike_sharing_isolation_forest_contamination_sensitivity",
         "dataset": metadata,
-        "status": "completed" if complete else "incomplete",
+        "status": "completed" if complete and control_checks_passed else "incomplete",
+        "control_checks_passed": control_checks_passed,
         "configuration": {
-            "rates": [float(value) for value in rates],
-            "seeds": [int(value) for value in seeds],
+            "rates": [float(value) for value in selected_rates],
+            "seeds": [int(value) for value in selected_seeds],
             "contamination_values": list(selected_contaminations),
             "n_estimators": int(n_estimators),
             "iqr_multiplier": float(iqr_multiplier),

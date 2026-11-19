@@ -52,6 +52,7 @@ def test_contamination_sweep_reports_actual_row_prevalence_and_control_invarianc
     )
 
     assert report["status"] == "completed"
+    assert report["control_checks_passed"] is True
     assert report["experiment"] == "uci_bike_sharing_isolation_forest_contamination_sensitivity"
     assert len(report["sweeps"]) == 3
     assert all(sweep["status"] == "completed" for sweep in report["sweeps"])
