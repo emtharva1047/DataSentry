@@ -1,0 +1,60 @@
+name: Bike Sharing Isolation Forest Sensitivity
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/app/services/dataset_bike_contamination_sensitivity.py"
+      - "backend/app/services/dataset_bike_detector_experiment.py"
+      - "backend/app/services/dataset_benchmark.py"
+      - "backend/app/services/dataset_anomaly.py"
+      - "backend/scripts/run_bike_sharing_contamination_sensitivity.py"
+      - "backend/tests/test_dataset_bike_contamination_sensitivity.py"
+      - ".github/workflows/bike-sharing-if-sensitivity.yml"
+  pull_request:
+    paths:
+      - "backend/app/services/dataset_bike_contamination_sensitivity.py"
+      - "backend/app/services/dataset_bike_detector_experiment.py"
+      - "backend/app/services/dataset_benchmark.py"
+      - "backend/app/services/dataset_anomaly.py"
+      - "backend/scripts/run_bike_sharing_contamination_sensitivity.py"
+      - "backend/tests/test_dataset_bike_contamination_sensitivity.py"
+      - ".github/workflows/bike-sharing-if-sensitivity.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contamination-sensitivity:
+    name: UCI Bike Sharing Isolation Forest sensitivity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend dependencies
+        working-directory: backend
+        run: python -m pip install -r requirements.txt
+      - name: Run contamination sensitivity experiments
+        working-directory: backend
+        run: >-
+          python -m scripts.run_bike_sharing_contamination_sensitivity
+          --rates 0.01,0.05,0.10
+          --seeds 42,123,2026
+          --contaminations 0.01,0.05,0.10
+          --n-estimators 100
+          --output /tmp/uci-bike-sharing-if-sensitivity.json
+      - name: Upload reproducible sensitivity report
+        uses: actions/upload-artifact@v4
+        with:
+          name: uci-bike-sharing-if-contamination-sensitivity
+          path: /tmp/uci-bike-sharing-if-sensitivity.json
+          if-no-files-found: error
+          retention-days: 30
