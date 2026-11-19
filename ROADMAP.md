@@ -10,7 +10,7 @@
 - [x] M6 — Anomaly detection: read-only IQR, modified robust Z-score, and seeded Isolation Forest APIs, configurable dashboard controls, evidence views, and the first UCI Wine ground-truth evaluation are implemented and browser-verified. Broader references and anomaly-distribution evaluation remain M9 research expansion.
 - [x] M7 — Safe cleaning: advisory recommendations, read-only preview, explicit apply, immutable versions, review acknowledgement, version history, DQS comparison, numeric summary deltas, aligned histograms, and Pearson correlation deltas passed the full-stack Chromium workflow on 16 November 2026.
 - [x] M8 — ML readiness and baselines: deterministic diagnostics, profile-driven target/feature selection, and logistic-regression classification plus Ridge regression are implemented with training-only preprocessing. Both task workflows, readiness, holdout metrics, and confusion-matrix rendering passed the full-stack Chromium workflow on 16 November 2026. Repeated-seed and corruption-condition model experiments remain M9 work.
-- [ ] M9 — Research lab: deterministic in-memory corruption, exact labels, defect-specific detector integration, and multi-rate/multi-seed benchmark CLIs are implemented. UCI Wine and UCI Bike Sharing detector/classification/regression experiments are documented. The 19 November Isolation Forest contamination-sensitivity sweep completed 9 IF contamination/rate combinations and 27 IF seed runs plus 54 invariant IQR/Robust-Z control runs; measured results and artifact are documented in docs/RESEARCH_RESULTS.md. Additional downstream regression corruption families, validation of the quality-version-2 categorical heuristic against refreshed benchmark artifacts, repeated-seed baseline uncertainty, and final research reporting remain.
+- [ ] M9 — Research lab: deterministic in-memory corruption, exact labels, defect-specific detector integration, and multi-rate/multi-seed benchmark CLIs are implemented. UCI Wine and UCI Bike Sharing detector/classification/regression experiments are documented. The 19 November Isolation Forest contamination-sensitivity sweep completed 9 IF contamination/rate combinations and 27 IF seed runs plus 54 invariant IQR/Robust-Z control runs; measured results and artifact are documented in docs/RESEARCH_RESULTS.md. Quality version 2 was re-benchmarked on UCI Wine and Bike Sharing at 1%, 5%, and 10% across three seeds; combined whitespace-plus-case defects achieved precision/recall/F1 of 1.0 on both references. Pure case-only public-reference evaluation, additional downstream regression corruption families, repeated-seed baseline uncertainty, and final research reporting remain.
 - [ ] M10 — Hardening: tests, documentation, research report, demo, and deployment.
 
 ## Definition of done
@@ -47,3 +47,11 @@ A milestone is complete only when its implementation is present, relevant checks
 - Tied casefold groups remain ambiguous and are not penalized for case-only variation; the analysis evidence records canonical counts and ambiguity.
 - The benchmark adapter reuses the production helper to prevent detector/quality-rule drift.
 - The UCI Bike Sharing detector benchmark is rerun under the revised rule before any updated precision claim is recorded.
+
+
+## 19 November 2026 — Categorical consistency quality version 2 (measured)
+
+- Refreshed UCI Wine and UCI Bike Sharing detector benchmarks on the same 1%/5%/10% rates and seeds 42/123/2026.
+- All 18 categorical rate/seed combinations completed with no skips; the combined whitespace-plus-case defect achieved precision/recall/F1 = 1.0 on both references.
+- The synthetic generator injects whitespace and swapped case together, so these public benchmarks do not independently establish pure case-only performance. Direct tests cover unique modal spellings and tied ambiguous groups.
+- Full measured results, artifact hashes, and limitations are recorded in docs/RESEARCH_RESULTS.md.

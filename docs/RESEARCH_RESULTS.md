@@ -180,9 +180,9 @@ The following values are cleaned-corrupted minus corrupted on the same seed and 
 5. This is one chronological holdout, one fixed Ridge alpha, and one corruption family. It does not establish performance across seasons, other datasets, other regression models, or other defects. Rolling-origin validation and broader missingness mechanisms remain necessary.
 
 
-## UCI Bike Sharing mixed-type detector benchmark
+## UCI Bike Sharing mixed-type detector benchmark — quality version 1 historical run
 
-**Execution date:** 18 November 2026. The final PR-head GitHub Actions workflow completed successfully; the job output and uploaded JSON artifact were inspected before recording these results.
+**Execution date:** 18 November 2026. This section records the original quality-version-1 categorical rule; its categorical precision rows are superseded by the quality-version-2 re-benchmark below. The final PR-head GitHub Actions workflow completed successfully; the job output and uploaded JSON artifact were inspected before recording these results.
 
 - Dataset: UCI Bike Sharing hourly, dataset 275, DOI 10.24432/C5W894, CC BY 4.0.
 - Detector reference: 17,379 rows and 13 predictors: eight semantic categorical fields and five numeric fields.
@@ -327,3 +327,59 @@ IQR and robust Z-score were each rerun for all three corruption rates under all 
 - The existing categorical consistency detector still needs cell-level evidence to reduce false positives.
 - Downstream regression under invalid-value, duplicate, categorical, and numerical-anomaly corruption remains outstanding; future test partitions must remain untouched.
 - Additional real-world or subtler anomaly references are needed before generalizing detector behaviour.
+
+
+## Categorical consistency quality version 2 — refreshed detector benchmarks (19 November 2026)
+
+**Implementation:** quality response version 2 flags surrounding whitespace independently. Within a casefold-equivalent group, a uniquely most-frequent trimmed spelling is treated as the observed canonical spelling; only less-frequent spellings are flagged. If the top frequency is tied, the group remains ambiguous and no case-only spelling is flagged. The detector benchmark imports the same production analysis helper, preventing the quality API and benchmark prediction logic from drifting.
+
+Both public detector workflows were rerun on the quality-version-2 code. The table reports mean precision, recall, and F1 across seeds 42, 123, and 2026; F1 standard deviation is the sample standard deviation (ddof=1).
+
+| Reference | Corruption rate | Injected categorical cells per seed | Precision | Recall | F1 mean ± sample SD |
+|---|---:|---:|---:|---:|---:|
+| UCI Wine (178 rows; derived alcohol_band) | 1% | 2 | 1.000 | 1.000 | 1.000000 ± 0 |
+| UCI Wine | 5% | 9 | 1.000 | 1.000 | 1.000000 ± 0 |
+| UCI Wine | 10% | 18 | 1.000 | 1.000 | 1.000000 ± 0 |
+| UCI Bike Sharing (17,379 rows; 8 categorical predictors) | 1% | 1,391 | 1.000 | 1.000 | 1.000000 ± 0 |
+| UCI Bike Sharing | 5% | 6,952 | 1.000 | 1.000 | 1.000000 ± 0 |
+| UCI Bike Sharing | 10% | 13,904 | 1.000 | 1.000 | 1.000000 ± 0 |
+
+Mean prediction runtime ± sample SD across seeds:
+
+| Reference | 1% | 5% | 10% |
+|---|---:|---:|---:|
+| UCI Wine | 0.001273 ± 0.000046 s | 0.001293 ± 0.000030 s | 0.001315 ± 0.000009 s |
+| UCI Bike Sharing | 0.353249 ± 0.003066 s | 0.370475 ± 0.001867 s | 0.384665 ± 0.006143 s |
+
+Python-traced peak-allocation proxy (mean ± sample SD bytes):
+
+| Reference | 1% | 5% | 10% |
+|---|---:|---:|---:|
+| UCI Wine | 31,519 ± 17 | 31,790 ± 12 | 32,137 ± 15 |
+| UCI Bike Sharing | 5,170,632 ± 944 | 5,447,463 ± 2,089 | 6,003,000 ± 3,665 |
+
+All 18 rate/seed combinations (six dataset/rate combinations × three seeds) completed with zero skips. For every seed and rate, TP equaled the injected cell count and FP/FN were zero. The clean-reference preflight passed for both references.
+
+### Provenance and artifacts
+
+- **UCI Wine workflow:** [Research Evaluation run 44444316810](https://github.com/emtharva1047/DataSentry/actions/runs/44444316810).
+- **UCI Wine artifact:** [uci-wine-reference-experiment](https://github.com/emtharva1047/DataSentry/actions/runs/44444316810/artifacts/14492202525), retained for 30 days.
+- **UCI Wine artifact ZIP SHA-256:** `7e1ccff12187ad403c8d4b86c9da300c1d0d8eb541cc7de0cd9d0487c4654c00`.
+- **UCI Wine JSON SHA-256:** `4c68d58eca2338323cfe3c5bceac1411242878f2ad774ed0ec3f773694d0ee3b`.
+- **UCI Bike Sharing workflow:** [Bike Sharing Detector Research run 44444316802](https://github.com/emtharva1047/DataSentry/actions/runs/44444316802).
+- **UCI Bike Sharing artifact:** [uci-bike-sharing-detector-benchmark](https://github.com/emtharva1047/DataSentry/actions/runs/44444316802/artifacts/14492218315), retained for 30 days.
+- **UCI Bike Sharing artifact ZIP SHA-256:** `15b60139c1f299089e66fad8f099d9fb7392d911cff522bfb39a96e8e9b4563e`.
+- **UCI Bike Sharing JSON SHA-256:** `303510b1f37fe3bd1ed836ee336f9413d5c7db47554ac72893f6ace1f6c9fac9`.
+- **Bike Sharing detector-frame SHA-256:** `93a00e87165516e6001877fcbb6ed30cdc58d73150f5198a826af063efb708d4`.
+- **Software:** Python 3.12.16, pandas 2.3.3, NumPy 2.5.5, scikit-learn 1.9.1.
+
+### Interpretation and limitations
+
+1. The previous 18 November Bike Sharing precision of 0.010–0.100 was produced by quality version 1, which flagged every member of a casefold-equivalent group. The quality-version-2 results supersede those categorical rows; the other detector results in the historical benchmark are unchanged.
+2. The synthetic categorical corruption utility currently adds both surrounding whitespace and swapped case. Since the revised detector always flags surrounding whitespace, the 1.0 precision/recall results validate the combined whitespace-plus-case defect and show that canonical category members are no longer false positives. They do **not** independently measure pure case-only detection.
+3. Pure case-only majority/tie behavior is covered by direct unit tests: a unique modal spelling is retained, a minority spelling is flagged, and tied groups remain ambiguous. A separate pure-case-only public-reference benchmark remains future work.
+4. The modal-spelling rule is a heuristic, not a business schema. A legitimate minority spelling can still be flagged; a genuine variant can be missed when counts tie or when the erroneous spelling becomes dominant.
+5. The Wine benchmark uses one derived categorical feature (`alcohol_band`), not an original UCI feature. The Bike benchmark uses the documented semantic mappings for integer-coded categories.
+6. These controlled synthetic results are not estimates of real-world performance. Runtime excludes corruption generation and metric calculation; `tracemalloc` is a partial allocation proxy and does not capture all native-library memory.
+
+The refreshed results are part of the reproducible research record, but M9 remains open for additional downstream regression defect families, pure case-only evaluation, repeated-seed baseline uncertainty, and final analysis.
