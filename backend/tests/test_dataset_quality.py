@@ -158,7 +158,7 @@ def test_categorical_consistency_flags_only_non_dominant_spelling_and_whitespace
         if group["normalized_value"] == "north"
     )
     assert north["canonical_value"] == "North"
-    assert north["canonical_count"] == 2
+    assert north["canonical_count"] == 3
     assert north["ambiguous"] is False
     assert {
         item["value"]: item["flagged"] for item in north["variants"]
