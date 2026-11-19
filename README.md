@@ -273,3 +273,16 @@ The workflow evaluates the five supported defect families with the applicable pr
 ### UCI Bike Sharing detector benchmark — measured results (18 November 2026)
 
 The first mixed-type Bike Sharing detector workflow completed 21 detector/rate combinations across three seeds (63 detector-seed runs, no skips). Missingness, duplicate, and numeric-parseability rules achieved precision/recall/F1 of 1.0 under the controlled matching-rule setup. The categorical consistency rule achieved recall 1.0 but precision only 0.010–0.100, exposing false positives from flagging all members of casefold-equivalent category groups. IQR and robust Z-score achieved recall 1.0 for the injected extreme values; Isolation Forest recall fell to 0.221 at 5% and 0.122 at 10% with fixed 5% contamination. Full means, sample standard deviations, runtime, memory proxy, confusion counts, provenance, and limitations are recorded in [docs/RESEARCH_RESULTS.md](docs/RESEARCH_RESULTS.md). The full JSON artifact is retained for 30 days in [workflow run 44221377880](https://github.com/emtharva1047/DataSentry/actions/runs/44221377880).
+
+
+## Isolation Forest contamination sensitivity
+
+The UCI Bike Sharing sensitivity runner evaluates the production Isolation Forest implementation at multiple contamination thresholds while holding the clean semantic reference, synthetic corruption rates, and random seeds constant. It records exact injected row support and predicted row prevalence per seed, so the configured contamination threshold can be compared with the actual row-level anomaly prevalence rather than the cell-level corruption rate.
+
+Run from `backend/`:
+
+```powershell
+python -m scripts.run_bike_sharing_contamination_sensitivity --rates 0.01,0.05,0.10 --seeds 42,123,2026 --contaminations 0.01,0.05,0.10 --n-estimators 100 --output /tmp/uci-bike-sharing-if-sensitivity.json
+```
+
+The report retains precision, recall, F1, confusion counts, runtime, Python-traced memory, actual ground-truth row prevalence, and predicted row prevalence for each seed. IQR and robust Z-score are repeated as contamination-independent controls; the runner verifies that their quality metrics and confusion counts remain invariant. Every requested seed must complete before aggregates are reported. The GitHub Actions workflow publishes the complete JSON report as a 30-day artifact. Contamination is a threshold parameter, not a calibrated estimate of real-world anomaly prevalence.

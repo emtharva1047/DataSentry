@@ -102,3 +102,12 @@ The first UCI Bike Sharing workflow completed successfully on 17 November 2026 (
 - Added a CLI and GitHub Actions workflow for the existing defect-specific benchmark engine. The workflow requests 1%, 5%, and 10% corruption, seeds 42/123/2026, and the production IQR, robust-Z, and Isolation Forest settings.
 - The benchmark retains cell-level metrics for missingness, categorical inconsistency, and invalid values, and row-level metrics for duplicates and numerical anomalies. All seed results and skipped reasons remain visible; no aggregate is emitted for incomplete runs.
 - The benchmark completed successfully on 18 November 2026 (21 detector/rate combinations, 63 detector-seed runs, no skipped runs). Missingness, duplicate, and invalid-value rules achieved 1.0 precision/recall/F1 in the controlled matching-rule setup; categorical consistency had recall 1.0 but precision 0.010–0.100; IQR and robust Z-score had recall 1.0; fixed-contamination Isolation Forest recall fell to 0.221 and 0.122 at 5% and 10%. Full results and limitations are in docs/RESEARCH_RESULTS.md. Python-traced memory remains a partial allocation proxy.
+
+
+## 19 November 2026 — Isolation Forest contamination sensitivity (implementation)
+
+- Added a deterministic UCI Bike Sharing sensitivity runner for contamination thresholds 0.01, 0.05, and 0.10, with rates 0.01/0.05/0.10 and seeds 42/123/2026.
+- Each setting reuses identical seeded corruption and evaluates the production IQR, robust-Z, and Isolation Forest implementations.
+- Per-seed reports now distinguish injected row prevalence from predicted row prevalence; both are calculated over the full reference row count.
+- IQR and robust-Z are retained as controls; the runner asserts their confusion counts and quality metrics are invariant across Isolation Forest contamination values.
+- A dedicated GitHub Actions workflow publishes the full JSON report. Results remain pending the PR workflow and will be recorded only after the artifact is inspected.

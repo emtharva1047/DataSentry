@@ -10,7 +10,7 @@
 - [x] M6 — Anomaly detection: read-only IQR, modified robust Z-score, and seeded Isolation Forest APIs, configurable dashboard controls, evidence views, and the first UCI Wine ground-truth evaluation are implemented and browser-verified. Broader references and threshold sensitivity remain M9 research expansion.
 - [x] M7 — Safe cleaning: advisory recommendations, read-only preview, explicit apply, immutable versions, review acknowledgement, version history, DQS comparison, numeric summary deltas, aligned histograms, and Pearson correlation deltas passed the full-stack Chromium workflow on 16 November 2026.
 - [x] M8 — ML readiness and baselines: deterministic diagnostics, profile-driven target/feature selection, and logistic-regression classification plus Ridge regression are implemented with training-only preprocessing. Both task workflows, readiness, holdout metrics, and confusion-matrix rendering passed the full-stack Chromium workflow on 16 November 2026. Repeated-seed and corruption-condition model experiments remain M9 work.
-- [ ] M9 — Research lab: deterministic in-memory corruption, exact labels, defect-specific detector integration, and multi-rate/multi-seed benchmark CLIs are implemented. UCI Wine detector/classification results and UCI Bike Sharing downstream regression results are documented. The UCI Bike Sharing detector runner maps integer-coded categories to semantic labels and completed five defect-family evaluations across three rates and three seeds (21 detector/rate combinations, 63 detector-seed runs, no skips); measured results and the artifact are documented in docs/RESEARCH_RESULTS.md. Categorical-consistency precision remains poor, fixed-contamination Isolation Forest recall falls as injected row prevalence rises, and broader regression corruption families, repeated-seed baseline uncertainty, and final research reporting remain.
+- [ ] M9 — Research lab: deterministic in-memory corruption, exact labels, defect-specific detector integration, and multi-rate/multi-seed benchmark CLIs are implemented. UCI Wine and UCI Bike Sharing detector/classification/regression experiments are documented. The 19 November Isolation Forest contamination-sensitivity runner now compares multiple thresholds against measured row-level injected prevalence while retaining IQR/robust-Z controls; execution and measured results are pending. Additional downstream regression corruption families, categorical-consistency precision improvement, repeated-seed baseline uncertainty, and final research reporting remain.
 - [ ] M10 — Hardening: tests, documentation, research report, demo, and deployment.
 
 ## Definition of done
@@ -21,3 +21,11 @@ A milestone is complete only when its implementation is present, relevant checks
 ## Full-stack verification
 
 - [x] Playwright Chromium smoke suite passed on 16 November 2026: one test, one worker, 7.3 seconds, no retry. It covers upload/list/detail, quality/schema/anomaly, cleaning preview/apply, immutable version comparison, ML readiness, classification/regression baselines, and original-file fingerprint preservation.
+
+
+## 19 November 2026 — Isolation Forest contamination sensitivity
+
+- Added a UCI Bike Sharing sensitivity runner for contamination values 0.01, 0.05, and 0.10 across corruption rates 1%, 5%, and 10% and seeds 42, 123, and 2026.
+- Reports exact ground-truth and predicted row-level anomaly prevalence per seed; the cell-level corruption rate is not treated as row-level anomaly prevalence.
+- Repeats IQR and robust Z-score as controls and checks their confusion counts and quality metrics remain invariant when only Isolation Forest contamination changes.
+- The workflow publishes per-seed results and mean/sample-standard-deviation aggregates as a 30-day artifact. Execution results are pending CI.
