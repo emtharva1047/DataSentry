@@ -261,3 +261,69 @@ The artifact also records the mean and sample SD of Python-traced peak allocatio
 6. Runtime excludes corruption generation and metric calculation. Python tracemalloc is not total process RSS and may omit native allocations.
 
 **Next experiments:** improve categorical cell-level evidence to reduce false positives; vary Isolation Forest contamination against measured row-level anomaly prevalence; evaluate subtler and multivariate anomalies; and add downstream regression conditions for invalid values, duplicates, and numerical anomalies with the future test partition untouched.
+
+
+## UCI Bike Sharing Isolation Forest contamination-sensitivity experiment
+
+**Execution date:** 19 November 2026. The GitHub Actions workflow completed successfully; the JSON artifact was downloaded, parsed, and its payload SHA-256 verified before recording these results.
+
+- **Dataset:** UCI Bike Sharing hourly, dataset 275, DOI 10.24432/C5W894, CC BY 4.0.
+- **Reference:** 17,379 rows and 13 detector predictors (eight semantic categorical fields and five numeric fields); target and direct target components remain excluded.
+- **Detector-frame SHA-256:** `93a00e87165516e6001877fcbb6ed30cdc58d73150f5198a826af063efb708d4`.
+- **Cell corruption rates:** 1%, 5%, and 10%, applied to eligible cells across the five numeric predictors.
+- **Seeds:** 42, 123, and 2026.
+- **Isolation Forest contamination values:** 0.01, 0.05, and 0.10; 100 estimators.
+- **Controls:** IQR multiplier 1.5 and modified robust-Z threshold 3.5.
+- **Coverage:** 9 Isolation Forest contamination/rate combinations, 27 Isolation Forest seed runs, and 54 IQR/robust-Z control seed runs (81 detector-seed executions total). No runs were skipped.
+- **Aggregation:** arithmetic mean and sample standard deviation (ddof=1) across the three seeds. Per-seed TP/FP/TN/FN and metrics are retained in the artifact.
+- **Runtime:** corruption generation and metric calculation are excluded; the measured interval includes production detector execution.
+- **Memory:** Python `tracemalloc` peak-allocation proxy; this is not total process RSS and may omit native NumPy/scikit-learn allocations.
+
+### Execution provenance
+
+- **Workflow:** [Bike Sharing Isolation Forest Sensitivity run 44442153834](https://github.com/emtharva1047/DataSentry/actions/runs/44442153834).
+- **Artifact:** [uci-bike-sharing-if-contamination-sensitivity](https://github.com/emtharva1047/DataSentry/actions/runs/44442153834/artifacts/14491785761), retained until 19 December 2026.
+- **Artifact ZIP SHA-256:** `422b188854fb86d89d155a2a0c875fa7d21798d970f1b73f6bfaaac174d2dc60`.
+- **JSON payload SHA-256:** `9ad886358d00afe75425ca662f28cafcb9236d4736111288a6edc30054186ccf`.
+- **Source archive SHA-256:** `b70182d0d0508e9abbb79306ce5c0cec34869000f8220175ac83d11dbe845401`.
+- **hour.csv SHA-256:** `e03de4ee4ef4dc376ac6e04bf829673c6269e8eba5c60fa121640fa2f829504f`.
+- **Analysis-frame SHA-256:** `8ff14f833673fbad9c35ec3267c5c23335f98ba2b586e63bba67f98a755ee804`.
+- **Software:** Python 3.12 workflow; pandas 2.3.3, NumPy 2.5.5, scikit-learn 1.9.1.
+
+### Measured Isolation Forest sensitivity
+
+Ground-truth and predicted prevalence are row-level fractions over all 17,379 reference rows. The configured synthetic rate is cell-level and is not interchangeable with row prevalence. Precision and recall columns show means; F1, prevalence, runtime show mean ± sample SD.
+
+| IF contamination | Cell corruption | Ground-truth row prevalence | Predicted row prevalence | Precision | Recall | F1 mean ± SD | Runtime seconds mean ± SD | Python peak allocation mean |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0.01 | 1% | 4.8833% ± 0.0218 pp | 1.0012% ± 0.0000 pp | 1.000000 | 0.205030 | 0.340290 ± 0.001257 | 0.743766 ± 0.003941 | 5.040 MiB |
+| 0.01 | 5% | 22.5789% ± 0.1716 pp | 1.0012% ± 0.0000 pp | 1.000000 | 0.044344 | 0.084923 ± 0.000619 | 0.753266 ± 0.001345 | 5.090 MiB |
+| 0.01 | 10% | 40.8405% ± 0.0808 pp | 1.0012% ± 0.0000 pp | 1.000000 | 0.024515 | 0.047857 ± 0.000093 | 0.771546 ± 0.004373 | 5.132 MiB |
+| 0.05 | 1% | 4.8833% ± 0.0218 pp | 5.0003% ± 0.0000 pp | 0.976602 | 1.000000 | 0.988159 ± 0.002227 | 0.755357 ± 0.002211 | 5.039 MiB |
+| 0.05 | 5% | 22.5789% ± 0.1716 pp | 5.0003% ± 0.0000 pp | 1.000000 | 0.221466 | 0.362621 ± 0.002259 | 0.765121 ± 0.000405 | 5.090 MiB |
+| 0.05 | 10% | 40.8405% ± 0.0808 pp | 5.0003% ± 0.0000 pp | 1.000000 | 0.122435 | 0.218159 ± 0.000385 | 0.786012 ± 0.002691 | 5.133 MiB |
+| 0.10 | 1% | 4.8833% ± 0.0218 pp | 9.9968% ± 0.0066 pp | 0.488489 | 1.000000 | 0.656353 ± 0.002257 | 0.769051 ± 0.002091 | 5.038 MiB |
+| 0.10 | 5% | 22.5789% ± 0.1716 pp | 9.9987% ± 0.0033 pp | 1.000000 | 0.442847 | 0.613847 ± 0.003105 | 0.778535 ± 0.002189 | 5.089 MiB |
+| 0.10 | 10% | 40.8405% ± 0.0808 pp | 10.0006% ± 0.0000 pp | 1.000000 | 0.244870 | 0.393406 ± 0.000626 | 0.800657 ± 0.003199 | 5.132 MiB |
+
+### Control checks
+
+IQR and robust Z-score were each rerun for all three corruption rates under all three Isolation Forest contamination settings. All six detector/rate control groups compared three settings and passed: confusion counts and precision/recall/F1/accuracy were invariant, as expected because these production detectors do not consume the Isolation Forest contamination parameter.
+
+### Interpretation
+
+1. **The cell-level corruption rate produces a much larger row-level anomaly prevalence.** Across the five numeric columns, the measured affected-row prevalence was about 4.88% at 1% cell corruption, 22.58% at 5%, and 40.84% at 10%. This is why the cell injection rate must not be used as an Isolation Forest contamination setting without measuring row support.
+2. **At 1% cell corruption, contamination 0.05 best matched the observed row prevalence among the three tested settings.** It predicted about 5.00% of rows and achieved mean precision 0.9766, recall 1.0, and F1 0.9882. Contamination 0.01 under-predicted positives (recall 0.2050); contamination 0.10 over-predicted them (precision 0.4885).
+3. **At 5% and 10% cell corruption, even contamination 0.10 under-predicted row prevalence.** It selected about 10% of rows while measured ground truth was about 22.58% and 40.84%; recall was 0.4428 and 0.2449, respectively.
+4. **Best F1 among only the tested thresholds** was contamination 0.05 for 1% cell corruption (0.9882), and 0.10 for 5% and 10% cell corruption (0.6138 and 0.3934). These are within-experiment comparisons, not a universal or production-calibrated optimum.
+5. The sweep demonstrates the sensitivity of Isolation Forest's decision threshold to row-level anomaly prevalence. It does not establish that contamination should be set equal to observed synthetic prevalence in real datasets; real anomalies may be multivariate, subtle, clustered, or unknown.
+6. Mean runtime ranged from about 0.744 to 0.801 seconds per run. Mean Python-traced peak allocation ranged from about 5.038 to 5.133 MiB; this is not total process memory.
+
+### Limitations and next experiments
+
+- One public reference dataset and one deliberately extreme numerical corruption mechanism.
+- Three corruption seeds share one fixed reference; they are repeated synthetic realizations, not independent datasets.
+- No contamination value is selected automatically and no universal optimum is claimed.
+- The existing categorical consistency detector still needs cell-level evidence to reduce false positives.
+- Downstream regression under invalid-value, duplicate, categorical, and numerical-anomaly corruption remains outstanding; future test partitions must remain untouched.
+- Additional real-world or subtler anomaly references are needed before generalizing detector behaviour.

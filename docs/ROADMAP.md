@@ -110,4 +110,14 @@ The first UCI Bike Sharing workflow completed successfully on 17 November 2026 (
 - Each setting reuses identical seeded corruption and evaluates the production IQR, robust-Z, and Isolation Forest implementations.
 - Per-seed reports now distinguish injected row prevalence from predicted row prevalence; both are calculated over the full reference row count.
 - IQR and robust-Z are retained as controls; the runner asserts their confusion counts and quality metrics are invariant across Isolation Forest contamination values.
-- A dedicated GitHub Actions workflow publishes the full JSON report. Results remain pending the PR workflow and will be recorded only after the artifact is inspected.
+- The dedicated GitHub Actions workflow completed successfully on 19 November 2026. The artifact was downloaded and inspected; measured results, row-level prevalence, control invariance, hashes, and limitations are recorded in docs/RESEARCH_RESULTS.md.
+
+
+## 19 November 2026 — Isolation Forest contamination sensitivity (measured)
+
+- The UCI Bike Sharing sensitivity workflow completed 9 Isolation Forest contamination/rate combinations and 27 IF seed runs, plus 54 IQR/Robust-Z control seed runs; no runs were skipped.
+- The artifact was downloaded and inspected before results were added to docs/RESEARCH_RESULTS.md.
+- Ground-truth row prevalence was 4.8833%, 22.5789%, and 40.8405% for 1%, 5%, and 10% cell corruption across five numeric features.
+- At 1% cell corruption, contamination 0.05 gave the best tested F1 (0.9882); at 5% and 10%, contamination 0.10 gave the best tested F1 (0.6138 and 0.3934), but recall remained 0.4428 and 0.2449.
+- All six IQR/Robust-Z control groups were invariant across the three Isolation Forest contamination settings.
+- Results are specific to this dataset and synthetic anomaly procedure; no universal contamination optimum is claimed. Additional regression corruption families and categorical detector precision remain outstanding.
