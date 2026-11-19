@@ -110,7 +110,7 @@ The first UCI Bike Sharing workflow completed successfully on 17 November 2026 (
 - Each setting reuses identical seeded corruption and evaluates the production IQR, robust-Z, and Isolation Forest implementations.
 - Per-seed reports now distinguish injected row prevalence from predicted row prevalence; both are calculated over the full reference row count.
 - IQR and robust-Z are retained as controls; the runner asserts their confusion counts and quality metrics are invariant across Isolation Forest contamination values.
-- A dedicated GitHub Actions workflow publishes the full JSON report. Results remain pending the PR workflow and will be recorded only after the artifact is inspected.
+- The dedicated GitHub Actions workflow completed successfully on 19 November 2026. The artifact was downloaded and inspected; measured results, row-level prevalence, control invariance, hashes, and limitations are recorded in docs/RESEARCH_RESULTS.md.
 
 
 ## 19 November 2026 — Isolation Forest contamination sensitivity (measured)
