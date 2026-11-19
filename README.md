@@ -11,7 +11,7 @@ DataSentry is a research-oriented full-stack application that profiles tabular d
 - CSV upload with extension/header validation, UTF-8/Windows-1252 decoding, byte/row/column limits, generated storage names, SHA-256 fingerprints, and metadata persistence.
 - Dataset list/detail APIs that never expose internal storage paths.
 - Read-only dataset profiling: inferred column types, missingness, unique counts, numeric summaries, categorical frequencies, numeric histograms, and Pearson correlations (up to 20 numeric columns).
-- Read-only inferred quality assessment for missing values, exact duplicate rows, likely numeric type mismatches, and categorical whitespace/case variants.
+- Read-only inferred quality assessment for missing values, exact duplicate rows, likely numeric type mismatches, surrounding whitespace, and non-dominant case-only category variants.
 - Explicit schema/domain validation for expected columns, required values, string/integer/number/boolean types, inclusive numeric ranges, allowed-value sets, and unexpected columns.
 - Explainable DQS with completeness (30%), validity (30%), uniqueness (20%), and consistency (20%); inapplicable components are excluded and active weights are renormalized.
 - Browser workspace with API status, dataset listing, CSV upload, upload feedback, and refresh.
@@ -24,7 +24,7 @@ DataSentry is a research-oriented full-stack application that profiles tabular d
 
 Anomaly review is available beside the quality check for each dataset. The dashboard sends detector selections and validated parameters to `POST /api/datasets/{id}/anomalies`, then displays per-detector flagged counts, row references, numeric eligibility, and method notes. The scan uses all eligible numeric-like columns; column-level filtering remains API-only. Anomaly findings are not included in DQS and never change source rows.
 
-Quality findings are evidence for review, not automatic corrections. The inferred validity detector is conservative; explicit business rules must be supplied rather than guessed. Schema validation is available through the API and is supplemental to the inference-based DQS in this version. Case and whitespace variants are review flags. The endpoint does not mutate or delete source data.
+Quality findings are evidence for review, not automatic corrections. The inferred validity detector is conservative; explicit business rules must be supplied rather than guessed. Schema validation is available through the API and is supplemental to the inference-based DQS in this version. Surrounding whitespace is always flagged. For casefold-equivalent groups, only a non-dominant spelling is flagged when one spelling has a unique highest count; tied groups remain ambiguous and are not case-only flags. This frequency heuristic is a review aid, not a business rule. The endpoint does not mutate or delete source data.
 
 ## Version quality comparison
 
@@ -91,7 +91,7 @@ The DQS components are each scored from 0–100 with explicit numerators and den
 - Completeness: non-missing cells / all cells.
 - Validity: finite, parseable values / non-missing values in inferred numeric-like columns. A column is considered numeric-like when at least 80% of its non-missing values parse as finite numbers and at least two values are valid.
 - Uniqueness: rows excluding duplicate occurrences after the first / all rows.
-- Consistency: categorical values without detected surrounding whitespace or case-only variants / non-missing categorical values.
+- Consistency: categorical values without detected surrounding whitespace or non-dominant case-only variants / non-missing categorical values.
 
 The nominal weights are 30%, 30%, 20%, and 20%. If a component has no assessable denominator, it is marked inapplicable and the remaining weights are renormalized. The overall score is a weighted mean of applicable components. The report includes component numerators, denominators, active weights, issue severity, affected counts, and one-based data-row evidence (excluding the header).
 
@@ -170,7 +170,7 @@ The reproducible command-line runner is `backend/scripts/run_detector_benchmark.
 python -m scripts.run_detector_benchmark reference.csv --rates 0.01,0.05,0.10 --seeds 42,123,2026 --output benchmark-report.json
 ```
 
-The input CSV is read-only. Before injecting defects, the runner rejects pre-existing missing cells, exact duplicate rows, detected categorical whitespace/case variants, and invalid values in inferred numeric-like columns. Statistical outliers are not rejected; if a detector flags them, they count as false positives against injected-only labels. The report records the filename, SHA-256, size, shape, Python, pandas, NumPy, and scikit-learn versions. Each rate/defect/detector experiment retains per-seed confusion counts and metrics; mean and sample standard deviation are emitted only when every requested seed completes. Missingness, categorical inconsistency, and invalid-value checks use cell-level labels; duplicate and numerical-anomaly checks use row-level labels. IQR, modified robust Z-score, and Isolation Forest reuse the production anomaly implementations. Python-traced memory is an allocation proxy and excludes some native-library memory. A report is not a substitute for the separate downstream experiment with an untouched clean test set.
+The input CSV is read-only. Before injecting defects, the runner rejects pre-existing missing cells, exact duplicate rows, detected categorical whitespace or non-dominant case-only variants, and invalid values in inferred numeric-like columns. Tied casefold-equivalent groups remain ambiguous and are not rejected by the case-only heuristic. Statistical outliers are not rejected; if a detector flags them, they count as false positives against injected-only labels. The report records the filename, SHA-256, size, shape, Python, pandas, NumPy, and scikit-learn versions. Each rate/defect/detector experiment retains per-seed confusion counts and metrics; mean and sample standard deviation are emitted only when every requested seed completes. Missingness, categorical inconsistency, and invalid-value checks use cell-level labels; duplicate and numerical-anomaly checks use row-level labels. IQR, modified robust Z-score, and Isolation Forest reuse the production anomaly implementations. Python-traced memory is an allocation proxy and excludes some native-library memory. A report is not a substitute for the separate downstream experiment with an untouched clean test set.
 
 ## Public reference experiment
 
@@ -291,3 +291,8 @@ The report retains precision, recall, F1, confusion counts, runtime, Python-trac
 ### Isolation Forest contamination sensitivity — measured results (19 November 2026)
 
 The UCI Bike Sharing sweep completed all 9 contamination/rate combinations and 27 Isolation Forest seed runs, plus 54 IQR/robust-Z control runs. Actual row-level anomaly prevalence was 4.88%, 22.58%, and 40.84% for 1%, 5%, and 10% cell corruption across five numeric features. The best F1 among tested contamination values was 0.988 at 0.05 contamination for 1% cell corruption, and 0.614/0.393 at 0.10 contamination for 5%/10% cell corruption. At higher rates, 0.10 contamination still under-detected the injected rows (recall 0.443 and 0.245). All six IQR/robust-Z control groups were invariant. These are dataset- and corruption-specific sensitivity results, not a universal calibration rule. Full per-seed confusion counts, prevalence, runtime, memory proxy, provenance, and limitations are in [docs/RESEARCH_RESULTS.md](docs/RESEARCH_RESULTS.md). The JSON artifact is available in [workflow run 44442153834](https://github.com/emtharva1047/DataSentry/actions/runs/44442153834/artifacts/14491785761).
+
+
+### Categorical consistency heuristic (quality version 2)
+
+Surrounding whitespace is flagged independently. For values that become equal after trimming and casefolding, DataSentry treats a uniquely most-frequent trimmed spelling as the observed canonical form and flags only less-frequent spellings. If the highest frequency is tied, the group is reported as ambiguous by the analysis helper and no case-only variant is flagged. This reduces the prior behavior that marked every member of a casefold-equivalent group, but it remains a frequency heuristic: a legitimate minority spelling can still be flagged, and a genuine error can be missed in an ambiguous group. No values are normalized automatically.

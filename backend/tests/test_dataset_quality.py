@@ -1,4 +1,5 @@
 """API tests for read-only quality rules and explainable DQS."""
+import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -8,6 +9,7 @@ from sqlalchemy.pool import StaticPool
 from app.database import Base, get_db
 from app.main import app
 from app.services import dataset_ingestion
+from app.services.dataset_quality import analyze_categorical_consistency
 
 
 @pytest.fixture
@@ -68,7 +70,6 @@ def test_quality_rules_and_dqs_report_evidence_and_denominators(quality_client):
     assert "missing_values:city" in issues
     assert "duplicate_rows:None" in issues
     assert "type_mismatch:score" in issues
-    assert "categorical_inconsistency:name" in issues
     assert "categorical_inconsistency:city" in issues
 
     assert issues["missing_values:city"]["evidence"]["row_numbers"] == [5]
@@ -89,10 +90,11 @@ def test_quality_rules_and_dqs_report_evidence_and_denominators(quality_client):
     assert components["uniqueness"]["numerator"] == 4
     assert components["uniqueness"]["denominator"] == 5
     assert components["uniqueness"]["score"] == 80.0
-    assert components["consistency"]["numerator"] == 3
+    assert components["consistency"]["numerator"] == 7
     assert components["consistency"]["denominator"] == 9
-    assert components["consistency"]["score"] == 33.33
-    assert score["overall"] == 78.17
+    assert components["consistency"]["score"] == 77.78
+    assert score["overall"] == 87.06
+    assert report["quality_version"] == 2
     assert score["active_weight_total"] == 1.0
 
 
@@ -142,3 +144,27 @@ def test_quality_evidence_is_bounded_and_uses_one_based_data_rows(quality_client
     row_numbers = issue["evidence"]["row_numbers"]
     assert issue["affected_count"] == 25
     assert row_numbers == list(range(1, 21))
+
+
+def test_categorical_consistency_flags_only_non_dominant_spelling_and_whitespace():
+    result = analyze_categorical_consistency(
+        pd.Series(["North", "North", "north", " North ", "South", "south"])
+    )
+
+    assert result["inconsistent_indexes"] == {2, 3}
+    assert result["whitespace_indexes"] == {3}
+    north = next(
+        group for group in result["case_variant_groups"]
+        if group["normalized_value"] == "north"
+    )
+    assert north["canonical_value"] == "North"
+    assert north["canonical_count"] == 2
+    assert north["ambiguous"] is False
+    assert {
+        item["value"]: item["flagged"] for item in north["variants"]
+    } == {"North": False, "north": True}
+
+    tied = analyze_categorical_consistency(pd.Series(["South", "south"]))
+    assert tied["inconsistent_indexes"] == set()
+    assert tied["case_variant_groups"][0]["canonical_value"] is None
+    assert tied["case_variant_groups"][0]["ambiguous"] is True

@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 from . import dataset_anomaly
+from .dataset_quality import analyze_categorical_consistency
 from .dataset_research import (
     SUPPORTED_DEFECTS,
     _infer_numeric_columns,
@@ -163,26 +164,17 @@ def _categorical_consistency_predictions(
     frame: pd.DataFrame,
     columns: Sequence[str],
 ) -> np.ndarray:
-    """Mirror the production whitespace and casefold-variant rule at cell level."""
+    """Reuse the production categorical rule so evaluation cannot drift."""
     mask = np.zeros(frame.shape, dtype=bool)
     positions = {name: index for index, name in enumerate(frame.columns)}
+    row_positions = {index: position for position, index in enumerate(frame.index)}
     for name in columns:
         column_position = positions[name]
-        variants_by_key: dict[str, dict[str, list[int]]] = {}
-        for row_index, value in enumerate(frame[name].tolist()):
-            if pd.isna(value):
-                continue
-            raw = str(value)
-            trimmed = raw.strip()
-            if raw != trimmed:
-                mask[row_index, column_position] = True
-            variants_by_key.setdefault(trimmed.casefold(), {}).setdefault(
-                trimmed, []
-            ).append(row_index)
-        for variants in variants_by_key.values():
-            if len(variants) > 1:
-                for row_indexes in variants.values():
-                    mask[row_indexes, column_position] = True
+        finding = analyze_categorical_consistency(frame[name])
+        for row_index in finding["inconsistent_indexes"]:
+            position = row_positions.get(row_index)
+            if position is not None:
+                mask[position, column_position] = True
     return mask.reshape(-1)
 
 

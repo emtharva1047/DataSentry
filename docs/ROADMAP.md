@@ -121,3 +121,8 @@ The first UCI Bike Sharing workflow completed successfully on 17 November 2026 (
 - At 1% cell corruption, contamination 0.05 gave the best tested F1 (0.9882); at 5% and 10%, contamination 0.10 gave the best tested F1 (0.6138 and 0.3934), but recall remained 0.4428 and 0.2449.
 - All six IQR/Robust-Z control groups were invariant across the three Isolation Forest contamination settings.
 - Results are specific to this dataset and synthetic anomaly procedure; no universal contamination optimum is claimed. Additional regression corruption families and categorical detector precision remain outstanding.
+
+
+## 19 November 2026 — Categorical consistency precision revision
+
+The previous categorical rule flagged every value in a casefold-equivalent group, producing many false positives on legitimate category spellings. Quality version 2 now always flags surrounding whitespace, but for case-only variants it flags only non-dominant spellings when there is a unique most-frequent trimmed spelling. Tied groups remain ambiguous and are not case-only findings. The benchmark uses the same production helper. Refreshed Bike Sharing and Wine detector artifacts are required before updating historical performance claims.
