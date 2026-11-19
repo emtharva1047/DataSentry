@@ -56,7 +56,7 @@ The ML-readiness API is `POST /api/datasets/{id}/ml-readiness`. It requires a ta
 - [x] Implement downstream classification comparison across clean, corrupted, and cleaned-corrupted training conditions; split clean data first, corrupt training features only, reuse the untouched clean test set within each seed, and fit preprocessing on each training condition only.
 - [x] Inspect the first UCI Wine artifact and record measured three-seed detector and downstream classification results, skipped cases, and limitations in docs/RESEARCH_RESULTS.md.
 - [x] Extend detector evaluation to the larger mixed-type UCI Bike Sharing reference; map integer-coded categorical predictors to semantic labels and execute the applicable five-defect benchmark at 1%, 5%, and 10% across seeds 42, 123, and 2026 (21 detector/rate combinations, 63 detector-seed runs, no skipped runs). Measured results are in docs/RESEARCH_RESULTS.md.
-- [ ] Extend downstream regression to training-only invalid-value, duplicate, categorical inconsistency, and numerical-anomaly conditions; improve categorical detector precision and evaluate Isolation Forest contamination sensitivity.
+- [ ] Extend downstream regression to training-only invalid-value, duplicate, categorical inconsistency, and numerical-anomaly conditions; complete the quality-version-2 categorical re-benchmark on UCI Wine and Bike Sharing (combined whitespace-plus-case precision/recall/F1 = 1.0 at all tested rates); pure case-only public-reference evaluation and additional downstream regression corruption families remain.
 - [x] ML dashboard integration.
 - [ ] Repeated-seed baseline evaluation, demo script, broader mixed-type/regression experiments, and final delivery report.
 - [x] Full browser-to-FastAPI verification (Playwright Chromium, 16 November 2026).
@@ -121,3 +121,13 @@ The first UCI Bike Sharing workflow completed successfully on 17 November 2026 (
 - At 1% cell corruption, contamination 0.05 gave the best tested F1 (0.9882); at 5% and 10%, contamination 0.10 gave the best tested F1 (0.6138 and 0.3934), but recall remained 0.4428 and 0.2449.
 - All six IQR/Robust-Z control groups were invariant across the three Isolation Forest contamination settings.
 - Results are specific to this dataset and synthetic anomaly procedure; no universal contamination optimum is claimed. Additional regression corruption families and categorical detector precision remain outstanding.
+
+
+## 19 November 2026 — Categorical consistency precision revision
+
+The previous categorical rule flagged every value in a casefold-equivalent group, producing many false positives on legitimate category spellings. Quality version 2 now always flags surrounding whitespace, but for case-only variants it flags only non-dominant spellings when there is a unique most-frequent trimmed spelling. Tied groups remain ambiguous and are not case-only findings. The benchmark uses the same production helper. Refreshed Bike Sharing and Wine detector artifacts are required before updating historical performance claims.
+
+
+## 19 November 2026 — Categorical consistency quality version 2 (measured)
+
+The UCI Wine and Bike Sharing detector workflows were rerun on the quality-version-2 production rule at 1%, 5%, and 10% with seeds 42, 123, and 2026. All 18 categorical rate/seed runs completed without skips and achieved precision/recall/F1 = 1.0. The current synthetic generator injects whitespace and swapped case together, so the public benchmark validates the combined defect but does not isolate pure case-only behavior. The modal/tie heuristic is covered by direct unit tests. See docs/RESEARCH_RESULTS.md for artifact provenance and limitations.

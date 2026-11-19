@@ -5,15 +5,18 @@ on:
     branches: [main]
     paths:
       - "backend/app/services/dataset_bike_detector_experiment.py"
+      - "backend/app/services/dataset_quality.py"
       - "backend/app/services/dataset_benchmark.py"
       - "backend/app/services/dataset_research.py"
       - "backend/app/services/dataset_anomaly.py"
       - "backend/scripts/run_bike_sharing_detector_benchmark.py"
       - "backend/tests/test_dataset_bike_detector_experiment.py"
+      - "backend/tests/test_dataset_quality.py"
       - ".github/workflows/bike-sharing-detector.yml"
   pull_request:
     paths:
       - "backend/app/services/dataset_bike_detector_experiment.py"
+      - "backend/app/services/dataset_quality.py"
       - "backend/app/services/dataset_benchmark.py"
       - "backend/app/services/dataset_research.py"
       - "backend/app/services/dataset_anomaly.py"

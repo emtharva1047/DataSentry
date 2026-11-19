@@ -5,12 +5,12 @@
 - [x] M1 — Foundation: FastAPI/SQLite APIs and Next.js dashboard are implemented; health/overview, production frontend, and backend integration passed the full-stack Chromium workflow on 16 November 2026.
 - [x] M2 — Dataset ingestion: validated CSV upload, metadata persistence, list/detail APIs, and browser upload/library passed the full-stack Chromium workflow on 16 November 2026.
 - [x] M3 — Profiling: schema, missingness, uniqueness, summaries, numeric distributions, and correlations via the read-only profile API.
-- [ ] M4 — Quality rules: inferred missingness, exact duplicates, numeric type mismatch, and categorical whitespace/case findings are implemented; explicit schema/domain validation is available and browser-verified through the read-only API. Interactive dashboard schema-authoring controls are intentionally deferred.
+- [ ] M4 — Quality rules: inferred missingness, exact duplicates, numeric type mismatch, and categorical whitespace/non-dominant case findings are implemented; quality version 2 treats a uniquely most-frequent spelling as canonical and leaves tied casefold groups ambiguous. Explicit schema/domain validation is available and browser-verified through the read-only API. Interactive dashboard schema-authoring controls are intentionally deferred.
 - [x] M5 — Explainable DQS: completeness, validity, uniqueness, and consistency components expose numerators/denominators; inapplicable dimensions are excluded and active weights are renormalized.
 - [x] M6 — Anomaly detection: read-only IQR, modified robust Z-score, and seeded Isolation Forest APIs, configurable dashboard controls, evidence views, and the first UCI Wine ground-truth evaluation are implemented and browser-verified. Broader references and anomaly-distribution evaluation remain M9 research expansion.
 - [x] M7 — Safe cleaning: advisory recommendations, read-only preview, explicit apply, immutable versions, review acknowledgement, version history, DQS comparison, numeric summary deltas, aligned histograms, and Pearson correlation deltas passed the full-stack Chromium workflow on 16 November 2026.
 - [x] M8 — ML readiness and baselines: deterministic diagnostics, profile-driven target/feature selection, and logistic-regression classification plus Ridge regression are implemented with training-only preprocessing. Both task workflows, readiness, holdout metrics, and confusion-matrix rendering passed the full-stack Chromium workflow on 16 November 2026. Repeated-seed and corruption-condition model experiments remain M9 work.
-- [ ] M9 — Research lab: deterministic in-memory corruption, exact labels, defect-specific detector integration, and multi-rate/multi-seed benchmark CLIs are implemented. UCI Wine and UCI Bike Sharing detector/classification/regression experiments are documented. The 19 November Isolation Forest contamination-sensitivity sweep completed 9 IF contamination/rate combinations and 27 IF seed runs plus 54 invariant IQR/Robust-Z control runs; measured results and artifact are documented in docs/RESEARCH_RESULTS.md. Additional downstream regression corruption families, categorical-consistency precision improvement, repeated-seed baseline uncertainty, and final research reporting remain.
+- [ ] M9 — Research lab: deterministic in-memory corruption, exact labels, defect-specific detector integration, and multi-rate/multi-seed benchmark CLIs are implemented. UCI Wine and UCI Bike Sharing detector/classification/regression experiments are documented. The 19 November Isolation Forest contamination-sensitivity sweep completed 9 IF contamination/rate combinations and 27 IF seed runs plus 54 invariant IQR/Robust-Z control runs; measured results and artifact are documented in docs/RESEARCH_RESULTS.md. Quality version 2 was re-benchmarked on UCI Wine and Bike Sharing at 1%, 5%, and 10% across three seeds; combined whitespace-plus-case defects achieved precision/recall/F1 of 1.0 on both references. Pure case-only public-reference evaluation, additional downstream regression corruption families, repeated-seed baseline uncertainty, and final research reporting remain.
 - [ ] M10 — Hardening: tests, documentation, research report, demo, and deployment.
 
 ## Definition of done
@@ -39,3 +39,19 @@ A milestone is complete only when its implementation is present, relevant checks
 - At 1% cell corruption, contamination 0.05 gave the best tested F1 (0.9882); at 5% and 10%, contamination 0.10 gave the best tested F1 (0.6138 and 0.3934), but recall remained 0.4428 and 0.2449.
 - All six IQR/Robust-Z control groups were invariant across the three Isolation Forest contamination settings.
 - Results are specific to this dataset and synthetic anomaly procedure; no universal contamination optimum is claimed. Additional regression corruption families and categorical detector precision remain outstanding.
+
+
+## 19 November 2026 — Categorical consistency precision revision
+
+- Quality version 2 flags surrounding whitespace independently and flags only non-dominant case-only spellings when a casefold-equivalent group has one uniquely most-frequent trimmed spelling.
+- Tied casefold groups remain ambiguous and are not penalized for case-only variation; the analysis evidence records canonical counts and ambiguity.
+- The benchmark adapter reuses the production helper to prevent detector/quality-rule drift.
+- The UCI Bike Sharing detector benchmark is rerun under the revised rule before any updated precision claim is recorded.
+
+
+## 19 November 2026 — Categorical consistency quality version 2 (measured)
+
+- Refreshed UCI Wine and UCI Bike Sharing detector benchmarks on the same 1%/5%/10% rates and seeds 42/123/2026.
+- All 18 categorical rate/seed combinations completed with no skips; the combined whitespace-plus-case defect achieved precision/recall/F1 = 1.0 on both references.
+- The synthetic generator injects whitespace and swapped case together, so these public benchmarks do not independently establish pure case-only performance. Direct tests cover unique modal spellings and tied ambiguous groups.
+- Full measured results, artifact hashes, and limitations are recorded in docs/RESEARCH_RESULTS.md.

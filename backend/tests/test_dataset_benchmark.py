@@ -4,6 +4,7 @@ import pytest
 
 from app.services import dataset_anomaly
 from app.services.dataset_benchmark import (
+    _categorical_consistency_predictions,
     _measure_detector,
     _numerical_detector_cases,
     run_synthetic_detector_benchmark,
@@ -203,3 +204,15 @@ def test_numerical_detector_measurement_reruns_the_full_detector(monkeypatch):
     assert measured["confusion_counts"]["true_positive"] == 2
     assert measured["metrics"]["runtime_seconds"] >= 0
     assert measured["metrics"]["python_tracemalloc_peak_bytes"] >= 0
+
+
+def test_categorical_benchmark_reuses_conservative_production_evidence():
+    frame = pd.DataFrame(
+        {"city": ["North", "North", "north", " North ", "South", "south"]}
+    )
+
+    predictions = _categorical_consistency_predictions(frame, ["city"]).reshape(frame.shape)
+
+    assert predictions[:, 0].tolist() == [
+        False, False, True, True, False, False
+    ]

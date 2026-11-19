@@ -113,10 +113,18 @@ def _numeric_candidates(frame: pd.DataFrame) -> dict[str, dict[str, Any]]:
     return candidates
 
 
-def _categorical_findings(series: pd.Series) -> dict[str, Any]:
+def analyze_categorical_consistency(series: pd.Series) -> dict[str, Any]:
+    """Flag whitespace and non-dominant case variants without guessing on ties.
+
+    A uniquely most-frequent trimmed spelling is treated as the observed
+    canonical form within each casefold-equivalent group. Less-frequent
+    spellings are review flags. If the highest count is tied, the group is
+    ambiguous and no case-only spelling is flagged. Surrounding whitespace
+    is always flagged independently.
+    """
     non_null = series.dropna().astype(str)
     trimmed = non_null.str.strip()
-    whitespace_indexes = set(non_null.index[non_null != trimmed])
+    whitespace_indexes = set(int(index) for index in non_null.index[non_null != trimmed])
     groups: dict[str, dict[str, list[int]]] = {}
 
     for index, value in trimmed.items():
@@ -128,13 +136,32 @@ def _categorical_findings(series: pd.Series) -> dict[str, Any]:
     for normalized, variants in groups.items():
         if len(variants) <= 1:
             continue
-        for indexes in variants.values():
-            case_variant_indexes.update(indexes)
+
+        highest_count = max(len(indexes) for indexes in variants.values())
+        leaders = [
+            value for value, indexes in variants.items()
+            if len(indexes) == highest_count
+        ]
+        canonical_value = leaders[0] if len(leaders) == 1 else None
+
+        if canonical_value is not None:
+            for value, indexes in variants.items():
+                if value != canonical_value:
+                    case_variant_indexes.update(indexes)
+
         case_variant_groups.append(
             {
                 "normalized_value": normalized,
+                "canonical_value": canonical_value,
+                "canonical_count": highest_count if canonical_value is not None else None,
+                "ambiguous": canonical_value is None,
                 "variants": [
-                    {"value": value, "count": len(indexes)}
+                    {
+                        "value": value,
+                        "count": len(indexes),
+                        "canonical": value == canonical_value if canonical_value is not None else False,
+                        "flagged": canonical_value is not None and value != canonical_value,
+                    }
                     for value, indexes in sorted(variants.items())
                 ],
             }
@@ -253,7 +280,7 @@ def assess_dataset_quality(
     for name in frame.columns:
         if str(name) in numeric:
             continue
-        finding = _categorical_findings(frame[name])
+        finding = analyze_categorical_consistency(frame[name])
         denominator = finding["denominator"]
         if denominator == 0:
             continue
@@ -269,7 +296,7 @@ def assess_dataset_quality(
                     str(name),
                     affected,
                     denominator,
-                    f"{affected} values in '{name}' contain surrounding whitespace or case-only category variants.",
+                    f"{affected} values in '{name}' contain surrounding whitespace or non-dominant case-only category variants.",
                     {
                         "row_numbers": _row_numbers(sorted(inconsistent_indexes)),
                         "whitespace_row_numbers": _row_numbers(
@@ -347,7 +374,7 @@ def assess_dataset_quality(
         "filename": dataset.filename,
         "source_version_id": source_version_id,
         "source_sha256": source_sha256 if source_sha256 is not None else dataset.sha256_hash,
-        "quality_version": 1,
+        "quality_version": 2,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "shape": {"rows": int(row_count), "columns": int(column_count)},
         "issue_count": len(issues),
@@ -364,7 +391,7 @@ def assess_dataset_quality(
             "Missing-value behavior follows pandas CSV parsing defaults.",
             "Numeric validity uses an inferred numeric-like threshold of at least 80% parseable finite non-missing values and at least two valid values.",
             "Business-specific domain constraints are not inferred; configure an expected schema before treating values outside business ranges as invalid.",
-            "Whitespace and case-only category variants are review flags, not proof of an error; no values are changed.",
+            "Surrounding whitespace is always flagged. For casefold-equivalent groups, only non-dominant spellings are flagged when one spelling has a unique highest count; tied groups remain ambiguous. This frequency heuristic is a review aid, not proof of an error; no values are changed.",
             "Exact duplicates count every repeated occurrence after the first; no row is deleted.",
             "Anomaly detection is separate from this score.",
         ],
