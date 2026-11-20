@@ -383,3 +383,70 @@ All 18 rate/seed combinations (six dataset/rate combinations × three seeds) com
 6. These controlled synthetic results are not estimates of real-world performance. Runtime excludes corruption generation and metric calculation; `tracemalloc` is a partial allocation proxy and does not capture all native-library memory.
 
 The refreshed results are part of the reproducible research record, but M9 remains open for additional downstream regression defect families, pure case-only evaluation, repeated-seed baseline uncertainty, and final analysis.
+
+
+## Pure case-only categorical benchmark — 20 November 2026
+
+**Experiment:** `pure_case_only_categorical_consistency`  
+**Ground-truth schema:** 2  
+**Categorical mode:** `case_only` (letter case swapped; no leading/trailing whitespace)  
+**Rates:** 1%, 5%, 10% of eligible categorical cells  
+**Seeds:** 42, 123, 2026  
+**References:** UCI Wine Recognition (178 rows, 14 detector columns including derived `alcohol_band`) and UCI Bike Sharing (17,379 rows, 13 detector columns including eight semantically mapped categorical predictors).
+
+### Measured detector results
+
+All values are the arithmetic mean across three seeds; F1 sample standard deviation uses ddof=1.
+
+| Reference | Rate | Injected cells per seed | Precision | Recall | F1 mean ± sample SD |
+|---|---:|---:|---:|---:|---:|
+| UCI Wine | 1% | 2 | 1.000 | 1.000 | 1.000000 ± 0 |
+| UCI Wine | 5% | 9 | 1.000 | 1.000 | 1.000000 ± 0 |
+| UCI Wine | 10% | 18 | 1.000 | 1.000 | 1.000000 ± 0 |
+| UCI Bike Sharing | 1% | 1,391 | 1.000 | 1.000 | 1.000000 ± 0 |
+| UCI Bike Sharing | 5% | 6,952 | 1.000 | 1.000 | 1.000000 ± 0 |
+| UCI Bike Sharing | 10% | 13,904 | 1.000 | 1.000 | 1.000000 ± 0 |
+
+For every seed/rate/reference, TP equaled the injected count and FP/FN were zero. All 18 reference/rate/seed trials completed; no detector runs were skipped. F1 sample SD was zero for every aggregate.
+
+### Runtime and Python allocation proxy
+
+Mean prediction runtime ± sample SD across seeds:
+
+| Reference | 1% | 5% | 10% |
+|---|---:|---:|---:|
+| UCI Wine | 0.000821 ± 0.000049 s | 0.000791 ± 0.000029 s | 0.000777 ± 0.000018 s |
+| UCI Bike Sharing | 0.315265 ± 0.014189 s | 0.320748 ± 0.003765 s | 0.332415 ± 0.006997 s |
+
+Python-traced peak-allocation proxy (mean bytes ± sample SD):
+
+| Reference | 1% | 5% | 10% |
+|---|---:|---:|---:|
+| UCI Wine | 31,754 ± 24 | 31,701 ± 16 | 31,637 ± 16 |
+| UCI Bike Sharing | 5,149,495 ± 5,133 | 5,210,460 ± 618 | 5,394,556 ± 1,327 |
+
+Runtime measures the production categorical prediction function only; corruption generation and metric calculation are excluded. `tracemalloc` is a Python allocation proxy and does not include every native NumPy/pandas allocation.
+
+### Clean-reference preflight
+
+Both references passed with zero missing cells, zero exact duplicate rows, zero pre-existing categorical findings, and zero invalid numeric cells. Statistical outliers were not rejected because unusual does not mean invalid.
+
+### Provenance and artifacts
+
+- **Workflow:** [Pure Case-Only Categorical Research run 44658968650](https://github.com/emtharva1047/DataSentry/actions/runs/44658968650).
+- **Artifact:** [pure-case-only-categorical](https://github.com/emtharva1047/DataSentry/actions/runs/44658968650/artifacts/14593779461), retained for 30 days (expires 20 December 2026).
+- **Artifact ZIP SHA-256:** `d488502b0388b292d6714dbaebaed935b8b420a89b98a94cebd7e4b9391a4ac0`.
+- **JSON SHA-256:** `52538f330b0931ae88bbdd2ffa8a612123ec78df25798da388df82f044b88188`.
+- **UCI Wine detector-frame SHA-256:** `44f38eddfcac4516356d48300c9b05a1f37b24605c2cb20b9a1f7b047a10eca6`.
+- **UCI Bike Sharing detector-frame SHA-256:** `93a00e87165516e6001877fcbb6ed30cdc58d73150f5198a826af063efb708d4`.
+- **Software:** Python 3.12.16, pandas 2.3.3, NumPy 2.5.5, scikit-learn 1.9.1.
+
+### Interpretation and limitations
+
+1. The experiment isolates pure case-only changes from the historical combined whitespace-plus-case transform. It directly tests the quality-v2 canonical-spelling heuristic rather than relying on whitespace detection.
+2. The perfect controlled result depends on the synthetic generator changing only a minority of values within each casefold-equivalent group, leaving the original spelling uniquely dominant. It does not establish performance when erroneous spellings are dominant, when groups are tied, or when legitimate minority variants occur in real data.
+3. The modal-spelling heuristic remains a review aid, not a business schema. Legitimate minority spellings can be flagged; tied groups remain ambiguous and are not case-only findings.
+4. UCI Wine uses one derived feature (`alcohol_band`) for categorical coverage. Bike Sharing uses documented semantic labels for eight integer-coded calendar/weather predictors.
+5. These two references and three synthetic seeds are not independent datasets or a real-world prevalence sample. The results must not be generalized to arbitrary schemas or production data.
+
+The pure case-only benchmark closes the previously documented subtype-isolation gap. Additional downstream regression corruption families, repeated-seed baseline uncertainty, and final delivery remain outstanding.
