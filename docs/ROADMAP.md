@@ -131,3 +131,18 @@ The previous categorical rule flagged every value in a casefold-equivalent group
 ## 19 November 2026 — Categorical consistency quality version 2 (measured)
 
 The UCI Wine and Bike Sharing detector workflows were rerun on the quality-version-2 production rule at 1%, 5%, and 10% with seeds 42, 123, and 2026. All 18 categorical rate/seed runs completed without skips and achieved precision/recall/F1 = 1.0. The current synthetic generator injects whitespace and swapped case together, so the public benchmark validates the combined defect but does not isolate pure case-only behavior. The modal/tie heuristic is covered by direct unit tests. See docs/RESEARCH_RESULTS.md for artifact provenance and limitations.
+
+
+## 20 November 2026 — Pure case-only categorical benchmark (implementation)
+
+- Synthetic corruption now distinguishes combined whitespace-plus-case, whitespace-only, and pure case-only variants; the latter changes letter case only and never adds whitespace.
+- Ground-truth schema version 2 records the categorical corruption mode.
+- A dedicated UCI Wine and Bike Sharing workflow evaluates the production quality-v2 canonical-spelling rule with three rates and three seeds. Public performance claims remain pending artifact inspection.
+
+
+## 20 November 2026 — Pure case-only categorical evaluation (measured)
+
+- The dedicated public-reference workflow completed all 18 reference/rate/seed runs (UCI Wine and UCI Bike Sharing × 1%, 5%, 10% × seeds 42, 123, 2026), with no skips.
+- Pure case-only injection swaps letter case without adding whitespace. The production quality-v2 detector achieved precision/recall/F1 = 1.0 at every tested rate on both references; F1 sample SD was 0.
+- Both clean-reference preflights reported zero missing cells, duplicate rows, categorical inconsistencies, and invalid numeric cells.
+- Results are specific to the controlled swapcase generator and the two documented references; they do not estimate real-world performance. Full per-seed metrics, runtimes, memory proxies, hashes, and artifact links are in docs/RESEARCH_RESULTS.md.

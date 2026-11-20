@@ -17,6 +17,7 @@ from . import dataset_anomaly
 from .dataset_quality import analyze_categorical_consistency
 from .dataset_research import (
     SUPPORTED_DEFECTS,
+    CATEGORICAL_CORRUPTION_MODES,
     _infer_numeric_columns,
     aggregate_seed_metrics,
     evaluate_binary_detector,
@@ -54,6 +55,7 @@ def _validate_benchmark_request(
     contamination: float,
     iqr_multiplier: float,
     robust_z_threshold: float,
+    categorical_mode: str,
 ) -> tuple[tuple[float, ...], tuple[int, ...], tuple[str, ...]]:
     if not isinstance(frame, pd.DataFrame) or frame.empty:
         raise ValueError("frame must be a non-empty pandas DataFrame")
@@ -111,6 +113,12 @@ def _validate_benchmark_request(
     unknown = [name for name in selected_defects if name not in SUPPORTED_DEFECTS]
     if unknown:
         raise ValueError("unsupported defect type(s): " + ", ".join(unknown))
+    if not isinstance(categorical_mode, str) or categorical_mode not in CATEGORICAL_CORRUPTION_MODES:
+        raise ValueError(
+            "categorical_mode must be one of: " + ", ".join(CATEGORICAL_CORRUPTION_MODES)
+        )
+    if categorical_mode != "combined" and "categorical_inconsistency" not in selected_defects:
+        raise ValueError("a non-default categorical_mode requires categorical_inconsistency")
 
     if isinstance(n_estimators, bool) or not isinstance(n_estimators, int):
         raise ValueError("n_estimators must be an integer between 1 and 500")
@@ -435,6 +443,7 @@ def run_synthetic_detector_benchmark(
     contamination: float = 0.05,
     iqr_multiplier: float = 1.5,
     robust_z_threshold: float = 3.5,
+    categorical_mode: str = "combined",
 ) -> dict[str, Any]:
     """Run defect-specific detectors over rates and at least three distinct seeds.
 
@@ -453,6 +462,7 @@ def run_synthetic_detector_benchmark(
         contamination,
         iqr_multiplier,
         robust_z_threshold,
+        categorical_mode,
     )
     reference_preflight = _clean_reference_preflight(frame)
     source = frame.copy(deep=True)
@@ -477,6 +487,7 @@ def run_synthetic_detector_benchmark(
                     rate=rate,
                     seed=seed,
                     defects=[defect],
+                    categorical_mode=categorical_mode,
                 )
                 defect_info = corruption.ground_truth["defects"][defect]
                 if defect_info["status"] != "completed":
@@ -547,6 +558,8 @@ def run_synthetic_detector_benchmark(
             "rates": list(rates),
             "seeds": list(seeds),
             "defects": list(defects),
+            "categorical_mode": categorical_mode,
+            "ground_truth_schema_version": 2,
             "iqr_multiplier": float(iqr_multiplier),
             "robust_z_threshold": float(robust_z_threshold),
             "contamination": float(contamination),
@@ -557,7 +570,8 @@ def run_synthetic_detector_benchmark(
             "Each trial injects one defect type into a fresh in-memory copy of the clean reference frame.",
             "Missingness, categorical inconsistency, and invalid-value metrics are cell-level; duplicate and numerical-anomaly metrics are row-level.",
             "The numerical IQR, robust-Z, and Isolation Forest adapters reuse the production anomaly implementation and its numeric-column eligibility rules.",
-            "The categorical rule mirrors whitespace and casefold-variant findings; a legitimate case variant can therefore be a false positive.",
+            "Categorical corruption mode is explicit: combined, whitespace_only, or case_only. Pure case-only results are evaluated separately from whitespace-supported combined defects.",
+            "The categorical rule uses the production canonical-spelling heuristic; tied groups remain ambiguous and legitimate minority spellings can still be flagged.",
             "Invalid-value evaluation uses numeric columns identified from the clean reference frame as the known schema for this controlled experiment.",
             "Timing covers the complete detector execution, including Isolation Forest fit/predict, and excludes corruption generation and metric calculation. Numerical detector eligibility is preflighted outside the timed interval; the measured callable reruns the detector.",
             "Memory is the Python-traced peak allocation delta during detector execution; native NumPy and scikit-learn allocations may not be fully represented.",

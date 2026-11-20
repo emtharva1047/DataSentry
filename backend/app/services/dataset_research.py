@@ -25,6 +25,7 @@ NUMERIC_PARSEABILITY = 0.80
 INVALID_NUMERIC_TOKEN = "__DATASENTRY_INVALID_NUMERIC__"
 MAX_CORRUPTION_RATE = 0.50
 MINIMUM_AGGREGATE_SEEDS = 3
+CATEGORICAL_CORRUPTION_MODES = ("combined", "whitespace_only", "case_only")
 
 
 @dataclass(frozen=True)
@@ -40,7 +41,8 @@ def _validate_input(
     rate: float,
     seed: int,
     defects: Iterable[str] | None,
-) -> tuple[float, int, tuple[str, ...]]:
+    categorical_mode: str,
+) -> tuple[float, int, tuple[str, ...], str]:
     if not isinstance(frame, pd.DataFrame) or frame.empty:
         raise ValueError("frame must be a non-empty pandas DataFrame")
     if not frame.columns.is_unique:
@@ -73,7 +75,13 @@ def _validate_input(
     unknown = [name for name in selected if name not in SUPPORTED_DEFECTS]
     if unknown:
         raise ValueError(f"unsupported corruption type(s): {', '.join(unknown)}")
-    return numeric_rate, numeric_seed, tuple(selected)
+    if not isinstance(categorical_mode, str) or categorical_mode not in CATEGORICAL_CORRUPTION_MODES:
+        raise ValueError(
+            "categorical_mode must be one of: " + ", ".join(CATEGORICAL_CORRUPTION_MODES)
+        )
+    if categorical_mode != "combined" and "categorical_inconsistency" not in selected:
+        raise ValueError("a non-default categorical_mode requires categorical_inconsistency")
+    return numeric_rate, numeric_seed, tuple(selected), categorical_mode
 
 
 def _numeric_values(series: pd.Series) -> np.ndarray:
@@ -176,6 +184,7 @@ def inject_synthetic_corruption(
     rate: float = 0.05,
     seed: int = 42,
     defects: Iterable[str] | None = None,
+    categorical_mode: str = "combined",
 ) -> CorruptionResult:
     """Return a deterministic corrupted copy and exact cell/row ground truth.
 
@@ -185,7 +194,9 @@ def inject_synthetic_corruption(
     Duplicate source rows are reserved before cell corruption so each appended
     duplicate is an exact copy of an otherwise unchanged source row.
     """
-    rate, seed, selected_defects = _validate_input(frame, rate, seed, defects)
+    rate, seed, selected_defects, categorical_mode = _validate_input(
+        frame, rate, seed, defects, categorical_mode
+    )
     original = frame.reset_index(drop=True).copy(deep=True)
     working = original.astype(object).copy(deep=True)
     rng = np.random.default_rng(seed)
@@ -278,15 +289,30 @@ def inject_synthetic_corruption(
             if isinstance(original.iat[row_index, original.columns.get_loc(column)], str)
             and bool(original.iat[row_index, original.columns.get_loc(column)].strip())
         ]
+        if categorical_mode == "case_only":
+            candidates = [
+                (row_index, column)
+                for row_index, column in candidates
+                if str(original.iat[row_index, original.columns.get_loc(column)]).strip().swapcase()
+                != str(original.iat[row_index, original.columns.get_loc(column)]).strip()
+            ]
         cells = _sample_cells(candidates, rate, rng)
         for row_index, column in cells:
             original_value = str(
                 original.iat[row_index, original.columns.get_loc(column)]
             ).strip()
-            working.iat[row_index, original.columns.get_loc(column)] = (
-                f" {original_value.swapcase()} "
-            )
+            if categorical_mode == "case_only":
+                corrupted_value = original_value.swapcase()
+            elif categorical_mode == "whitespace_only":
+                corrupted_value = f" {original_value} "
+            else:
+                corrupted_value = f" {original_value.swapcase()} "
+            working.iat[row_index, original.columns.get_loc(column)] = corrupted_value
         record_cells("categorical_inconsistency", cells)
+        if not cells and categorical_mode == "case_only":
+            details["categorical_inconsistency"]["skipped_reason"] = (
+                "no eligible categorical values changed under swapcase"
+            )
 
     if "invalid_values" in selected_defects:
         candidates = _cell_candidates(
@@ -355,10 +381,11 @@ def inject_synthetic_corruption(
     ]
 
     ground_truth = {
-        "schema_version": 1,
+        "schema_version": 2,
         "seed": seed,
         "rate": rate,
         "selected_defects": list(selected_defects),
+        "categorical_corruption_mode": categorical_mode,
         "source_shape": {"rows": int(row_count), "columns": int(original.shape[1])},
         "corrupted_shape": {"rows": int(len(working)), "columns": int(working.shape[1])},
         "numeric_columns_used": numeric_columns,

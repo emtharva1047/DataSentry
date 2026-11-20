@@ -36,13 +36,13 @@ Supported defects and injection rules:
 
 - **Missingness:** replace selected observed cells with pandas missing values.
 - **Duplicates:** append exact copies of selected source rows. Source rows are reserved before cell corruption so the inserted record is an exact duplicate. Only the appended row is labeled as the duplicate, matching first-occurrence duplicate detectors.
-- **Categorical inconsistency:** wrap selected non-empty string values in whitespace and swap their case. The original category is retained in the untouched input frame.
+- **Categorical inconsistency:** the generator supports `combined` (surrounding whitespace plus swapped case), `whitespace_only`, and `case_only` (swap alphabetic case without whitespace). Pure case-only candidates that do not change under `swapcase()` are ineligible and are reported as skipped when none remain.
 - **Invalid values:** replace selected finite values in inferred numeric-like columns with a collision-checked non-numeric sentinel.
 - **Numerical anomalies:** replace selected finite numeric cells with a finite value above the original column maximum, where representable. Columns with insufficient numeric evidence or no representable higher finite value are skipped.
 
 Numeric columns require at least four finite values and 80% finite parseability among non-missing values. Categorical candidates are non-numeric columns containing non-empty strings. Defect selections do not overlap at the same cell; duplicate source rows are not modified by cell corruptions. The input DataFrame is copied and never mutated. The returned frame is in memory only.
 
-Ground-truth schema version 1 contains source/corrupted shapes, seed, rate, selected defects, inferred eligible columns, per-defect status/count/records, cell labels, duplicate-row records, and grouped row labels. Every cell label has a zero-based row position in the returned corrupted frame, a one-based data-row number (CSV header excluded), a column name, and a defect type. Duplicate records additionally include both inserted and source row positions. These labels describe only defects injected by this generator; pre-existing defects in the reference frame are not labeled.
+Ground-truth schema version 2 contains source/corrupted shapes, seed, rate, selected defects, categorical corruption mode, inferred eligible columns, per-defect status/count/records, cell labels, duplicate-row records, and grouped row labels. Every cell label has a zero-based row position in the returned corrupted frame, a one-based data-row number (CSV header excluded), a column name, and a defect type. Duplicate records additionally include both inserted and source row positions. These labels describe only defects injected by this generator; pre-existing defects in the reference frame are not labeled.
 
 evaluate_binary_detector computes TP, FP, TN, FN, precision, recall, F1, and accuracy for equal-length non-empty binary sequences. Undefined precision, recall, or F1 uses zero and is explicitly reported. aggregate_seed_metrics requires at least three distinct unsigned seeds, identical metric names, and finite numeric values. It reports the arithmetic mean and sample standard deviation (ddof=1), retaining per-seed values. It does not silently drop failed or missing runs.
 
@@ -226,3 +226,15 @@ This is intentionally a conservative heuristic, not schema inference. A legitima
 
 
 The quality-version-2 public re-benchmark does not isolate case-only changes because the current corruption generator injects whitespace and swapped case together. It verifies that canonical members are no longer flagged as false positives for the combined defect. A future generator revision should include separately labeled whitespace-only, case-only, and combined modes so detector performance can be attributed to each sub-type without conflating them.
+
+
+## Pure case-only categorical benchmark
+
+The categorical corruption generator now separates three modes: `combined` (the historical whitespace-plus-case transform), `whitespace_only`, and `case_only`. The pure case-only mode swaps alphabetic case without adding or trimming whitespace; candidates whose value is unchanged by `swapcase()` are excluded from the eligible set. Ground-truth schema version 2 records the mode so benchmark reports cannot conflate the subtypes.
+
+The dedicated CLI is `backend/scripts/run_case_only_categorical_benchmark.py`. It evaluates the production quality-v2 canonical-spelling rule on UCI Wine's derived `alcohol_band` and the semantically mapped UCI Bike Sharing categorical predictors, at 1%, 5%, and 10% over seeds 42, 123, and 2026. The clean-reference preflight remains active. These controlled results evaluate only the injected case-only variants and do not establish performance on unknown business schemas; the modal-spelling heuristic can still flag legitimate minority spellings and leaves tied groups ambiguous.
+
+
+### Pure case-only public-reference benchmark (20 November 2026)
+
+The dedicated `run_case_only_public_reference_benchmark` evaluates the production quality-v2 canonical-spelling rule with the generator's `case_only` mode. It runs UCI Wine and semantically mapped UCI Bike Sharing at rates 0.01/0.05/0.10 with seeds 42/123/2026. Pure case-only injection swaps alphabetic case and adds no whitespace. Ground-truth schema v2 records the categorical mode. The workflow completed all 18 reference/rate/seed runs without skips; measured results and artifact provenance are recorded in docs/RESEARCH_RESULTS.md. The F1=1.0 result is limited to the controlled generator and these two clean references and must not be generalized to real-world category drift.
