@@ -4,7 +4,7 @@
 
 DataSentry is a research-oriented full-stack application that profiles tabular datasets, detects quality issues using statistical, rule-based, and machine-learning techniques, recommends transparent cleaning actions, and evaluates how data defects affect downstream ML models.
 
-> **Status:** The FastAPI backend and Next.js dashboard provide validated CSV ingestion, statistical profiling, explainable DQS, explicit schema/domain validation, anomaly review, safe cleaning with immutable versions, numeric version comparison, ML-readiness diagnostics, and baseline classification/regression. The complete browser-to-API workflow passed Playwright Chromium on 16 November 2026. Research now includes UCI Wine detector/classification evaluation, UCI Bike Sharing detector and downstream regression experiments, and a 19 November Isolation Forest contamination-sensitivity sweep (three contamination values, three cell-corruption rates, and three seeds; 27 IF seed runs plus 54 invariant IQR/Robust-Z control runs). Measured results, artifacts, and limitations are recorded in [docs/RESEARCH_RESULTS.md](docs/RESEARCH_RESULTS.md). Quality version 2 has been re-benchmarked on UCI Wine and Bike Sharing at 1%, 5%, and 10% across three seeds; the combined whitespace-plus-case synthetic defect achieved precision/recall/F1 of 1.0 on both references. Pure case-only corruption is now a separate synthetic mode (`case_only`) with its own public-reference workflow; its measured results are recorded separately from combined whitespace-plus-case experiments. Remaining work includes additional downstream regression defect families, repeated-seed baseline uncertainty, and final delivery.
+> **Status:** The FastAPI backend and Next.js dashboard provide validated CSV ingestion, statistical profiling, explainable DQS, explicit schema/domain validation, anomaly review, safe cleaning with immutable versions, numeric version comparison, ML-readiness diagnostics, and baseline classification/regression. The complete browser-to-API workflow passed Playwright Chromium on 16 November 2026. Research now includes UCI Wine detector/classification evaluation, UCI Bike Sharing detector and downstream regression experiments, and a 19 November Isolation Forest contamination-sensitivity sweep (three contamination values, three cell-corruption rates, and three seeds; 27 IF seed runs plus 54 invariant IQR/Robust-Z control runs). Measured results, artifacts, and limitations are recorded in [docs/RESEARCH_RESULTS.md](docs/RESEARCH_RESULTS.md). Quality version 2 has been re-benchmarked on UCI Wine and Bike Sharing at 1%, 5%, and 10% across three seeds; the combined whitespace-plus-case synthetic defect achieved precision/recall/F1 of 1.0 on both references. A dedicated pure case-only benchmark completed on UCI Wine and Bike Sharing at 1%, 5%, and 10% across three seeds; the controlled synthetic F1 was 1.0 on both references. This is not a real-world performance estimate. Remaining work includes additional downstream regression defect families, repeated-seed baseline uncertainty, and final delivery.
 
 ## Current capabilities
 
@@ -153,7 +153,7 @@ This is a single seeded holdout baseline, not model selection or a performance g
 
 The backend research module app.services.dataset_research provides in-memory experiment construction; these are not public API endpoints and do not persist corrupted datasets.
 
-- inject_synthetic_corruption(frame, rate, seed, defects, categorical_mode) returns a separate corrupted DataFrame and exact ground-truth labels. Categorical modes are `combined` (case swap plus surrounding whitespace), `whitespace_only`, and `case_only` (swap letter case without adding whitespace).
+- inject_synthetic_corruption(frame, rate, seed, defects, categorical_mode) returns a separate corrupted DataFrame and exact ground-truth labels (schema v2). Categorical modes are `combined` (case swap plus surrounding whitespace), `whitespace_only`, and `case_only` (swap letter case without adding whitespace).
 - The rate is applied to the currently eligible cells for cell-level defects and eligible source rows for duplicate insertion. Counts are rounded up to at least one when candidates exist. The seed is a 32-bit unsigned integer.
 - Ground truth distinguishes zero-based positions in the returned corrupted frame from one-based data-row numbers. Duplicate labels identify only the newly appended row and retain its source-row reference. Cell labels identify each injected cell and defect type.
 - Ineligible defect types are reported as skipped with a reason; the generator does not invent labels. The input DataFrame is never modified.
@@ -312,3 +312,12 @@ python -m scripts.run_case_only_categorical_benchmark --rates 0.01,0.05,0.10 --s
 ```
 
 This workflow uses the production quality-v2 canonical-spelling detector on UCI Wine and semantically mapped UCI Bike Sharing. Unlike the combined mode, `case_only` swaps alphabetic case without adding whitespace. Ground-truth schema version 2 records the selected mode. Results are kept separate from combined whitespace-plus-case metrics.
+
+
+Run the pure case-only public-reference experiment with:
+
+```powershell
+python -m scripts.run_case_only_categorical_benchmark --rates 0.01,0.05,0.10 --seeds 42,123,2026 --output research-results/pure-case-only-categorical.json
+```
+
+The 20 November 2026 run completed both references with no skipped trials. Measured per-seed confusion counts, runtimes, allocation proxies, provenance hashes, and limitations are recorded in [docs/RESEARCH_RESULTS.md](docs/RESEARCH_RESULTS.md).
