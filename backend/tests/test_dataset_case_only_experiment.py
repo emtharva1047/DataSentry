@@ -38,6 +38,37 @@ def test_case_only_corruption_changes_case_without_adding_whitespace():
     pd.testing.assert_frame_equal(original, _reference_frame())
 
 
+def test_whitespace_only_mode_preserves_letter_case():
+    original = _reference_frame()
+    result = inject_synthetic_corruption(
+        original,
+        rate=0.05,
+        seed=17,
+        defects=("categorical_inconsistency",),
+        categorical_mode="whitespace_only",
+    )
+
+    assert result.ground_truth["categorical_corruption_mode"] == "whitespace_only"
+    for label in result.ground_truth["cell_labels"]:
+        before = original.iloc[label["row_index"]][label["column"]]
+        after = result.frame.iloc[label["row_index"]][label["column"]]
+        assert after == f" {before} "
+        assert after.strip() == before
+
+
+def test_case_only_rejects_unknown_mode():
+    import pytest
+
+    with pytest.raises(ValueError, match="categorical_mode"):
+        inject_synthetic_corruption(
+            _reference_frame(),
+            rate=0.05,
+            seed=17,
+            defects=("categorical_inconsistency",),
+            categorical_mode="unknown",
+        )
+
+
 def test_case_only_benchmark_uses_production_detector_and_exact_labels():
     report = run_synthetic_detector_benchmark(
         _reference_frame(),
