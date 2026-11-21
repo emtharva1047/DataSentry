@@ -83,3 +83,11 @@ def test_bike_regression_runs_three_seeds_with_untouched_future_test(monkeypatch
     assert len({run["split"]["clean_test_sha256"] for run in experiment["per_seed"]}) == 1
     assert all(run["split"]["test_partition_untouched"] for run in experiment["per_seed"])
     assert all(run["corruption"]["injected_cells"] > 0 and run["cleaning"]["changed"] for run in experiment["per_seed"])
+    duplicate_experiment = report["downstream_regression"]["duplicate_experiments"][0]
+    assert duplicate_experiment["configuration"]["corruption_type"] == "duplicates"
+    assert all(
+        run["corruption"]["injected_rows"] > 0
+        and run["cleaning"]["removed_row_count"] == run["corruption"]["injected_rows"]
+        and run["split"]["test_partition_untouched"]
+        for run in duplicate_experiment["per_seed"]
+    )

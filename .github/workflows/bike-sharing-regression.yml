@@ -1,4 +1,4 @@
-name: Bike Sharing Regression Research
+name: Bike Sharing Downstream Regression Research
 
 on:
   push:
@@ -25,7 +25,7 @@ permissions:
 
 jobs:
   bike-sharing-regression:
-    name: UCI Bike Sharing clean-test regression experiment
+    name: UCI Bike Sharing clean-test missingness and duplicate regression experiments
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -45,6 +45,7 @@ jobs:
         run: >-
           python -m scripts.run_bike_sharing_regression_experiment
           --rates 0.01,0.05,0.10
+          --corruption-types missingness,duplicates
           --seeds 42,123,2026
           --test-size 0.25
           --alpha 1.0

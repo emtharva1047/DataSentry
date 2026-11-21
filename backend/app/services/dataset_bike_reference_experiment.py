@@ -167,33 +167,52 @@ def build_bike_sharing_reference() -> tuple[pd.DataFrame, pd.DataFrame, dict[str
 def run_bike_sharing_regression_experiment(
     *, rates: Sequence[float] = (0.01, 0.05, 0.10),
     seeds: Sequence[int] = DEFAULT_REGRESSION_SEEDS, test_size: float = 0.25, alpha: float = 1.0,
+    corruption_types: Sequence[str] = ("missingness", "duplicates"),
 ) -> dict[str, Any]:
-    """Run multi-rate, multi-seed downstream regression on UCI Bike Sharing."""
+    """Run multi-rate, multi-seed downstream regression for supported training defects."""
     features, full_frame, metadata = build_bike_sharing_reference()
     normalized_rates = tuple(float(rate) for rate in rates)
     if not normalized_rates or len(set(normalized_rates)) != len(normalized_rates) or any(
         not np.isfinite(rate) or not 0 < rate <= 0.5 for rate in normalized_rates
     ):
         raise ValueError("rates must be distinct finite values in (0, 0.5]")
-    experiments = [
-        run_regression_corruption_experiment(
-            full_frame, target_column=TARGET_COLUMN, feature_columns=list(features.columns),
-            numeric_columns=NUMERIC_COLUMNS, categorical_columns=CATEGORICAL_COLUMNS,
-            seeds=seeds, test_size=test_size, corruption_rate=rate, alpha=alpha,
-        )
-        for rate in normalized_rates
-    ]
+    if isinstance(corruption_types, (str, bytes)):
+        raise ValueError("corruption_types must be a sequence of supported defect names")
+    normalized_types = tuple(corruption_types)
+    supported_types = ("missingness", "duplicates")
+    if (
+        not normalized_types
+        or len(set(normalized_types)) != len(normalized_types)
+        or any(name not in supported_types for name in normalized_types)
+    ):
+        raise ValueError("corruption_types must contain distinct supported names: " + ", ".join(supported_types))
+
+    experiments_by_type = {
+        corruption_type: [
+            run_regression_corruption_experiment(
+                full_frame, target_column=TARGET_COLUMN, feature_columns=list(features.columns),
+                numeric_columns=NUMERIC_COLUMNS, categorical_columns=CATEGORICAL_COLUMNS,
+                seeds=seeds, test_size=test_size, corruption_rate=rate, alpha=alpha,
+                corruption_type=corruption_type,
+            )
+            for rate in normalized_rates
+        ]
+        for corruption_type in normalized_types
+    }
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "dataset": metadata,
         "downstream_regression": {
-            "corruption_type": "training_feature_missingness",
+            "corruption_types": list(normalized_types),
             "corruption_rates": list(normalized_rates),
-            "experiments": experiments,
+            "experiments": experiments_by_type.get("missingness", []),
+            "duplicate_experiments": experiments_by_type.get("duplicates", []),
         },
         "scope_limitations": [
             "One UCI hourly reference and one chronological 75/25 holdout.",
-            "Only training features receive missingness; future test rows and targets remain untouched.",
+            "Only training data is corrupted; future test rows and targets remain untouched.",
+            "Missingness changes training features only; duplicate corruption appends complete feature/target training rows.",
+            "Production cleaning uses median/mode imputation for missingness and exact duplicate removal for duplicate corruption.",
             "Ridge is a fixed-alpha baseline; no rolling-origin cross-validation or tuning is performed.",
             "casual and registered are excluded as direct target components; day_index is derived and documented.",
         ],

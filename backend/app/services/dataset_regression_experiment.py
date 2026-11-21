@@ -15,6 +15,7 @@ from .dataset_research import aggregate_seed_metrics, inject_synthetic_corruptio
 DEFAULT_REGRESSION_SEEDS = (42, 123, 2026)
 MINIMUM_REGRESSION_ROWS = 30
 MAX_REGRESSION_SEEDS = 10
+SUPPORTED_REGRESSION_CORRUPTIONS = ("missingness", "duplicates")
 
 
 def _frame_sha256(frame: pd.DataFrame) -> str:
@@ -121,14 +122,21 @@ def run_regression_corruption_experiment(
     categorical_columns: Sequence[str] | None = None,
     seeds: Sequence[int] = DEFAULT_REGRESSION_SEEDS,
     test_size: float = 0.25, corruption_rate: float = 0.05, alpha: float = 1.0,
+    corruption_type: str = "missingness",
 ) -> dict[str, Any]:
-    """Compare clean, missing-corrupted, and production-cleaned training on a future holdout.
+    """Compare clean, corrupted, and production-cleaned training on a future holdout.
 
-    Input rows must already be chronologically ordered. The first partition is
-    training; the final partition is never passed to corruption or cleaning.
+    Missingness is injected into training features. Duplicate corruption appends
+    exact copies of complete training rows, including their target, so feature
+    and label alignment is preserved. The chronological future test partition
+    is never passed to corruption or cleaning.
     """
     if isinstance(alpha, (bool, np.bool_)) or not np.isfinite(alpha) or float(alpha) <= 0:
         raise ValueError("alpha must be a finite number greater than zero")
+    if not isinstance(corruption_type, str) or corruption_type not in SUPPORTED_REGRESSION_CORRUPTIONS:
+        raise ValueError(
+            "corruption_type must be one of: " + ", ".join(SUPPORTED_REGRESSION_CORRUPTIONS)
+        )
     snapshot = frame.copy(deep=True)
     features, target, selected, seed_values, declared_numeric, declared_categorical = _validate(
         frame, target_column, feature_columns, numeric_columns, categorical_columns,
@@ -153,38 +161,105 @@ def run_regression_corruption_experiment(
             categorical = list(declared_categorical)
 
         corruption_seed = (seed + 130363) % (2**32)
+        if corruption_type == "duplicates":
+            # Include the target so every appended feature row retains its true label.
+            corruption_input = train_x.copy(deep=True)
+            corruption_input[target_column] = train_y.to_numpy(copy=True)
+        else:
+            corruption_input = train_x.copy(deep=True)
+
         corruption = inject_synthetic_corruption(
-            train_x, rate=float(corruption_rate), seed=corruption_seed, defects=["missingness"]
+            corruption_input,
+            rate=float(corruption_rate),
+            seed=corruption_seed,
+            defects=[corruption_type],
         )
-        defect = corruption.ground_truth["defects"]["missingness"]
+        defect = corruption.ground_truth["defects"][corruption_type]
         if defect["status"] != "completed":
-            raise ValueError("training missingness could not be injected: " + str(defect.get("skipped_reason")))
-        cleaned, cleaning = dataset_cleaning._transform(corruption.frame, {
-            "drop_exact_duplicates": False,
-            "fill_numeric_median": numeric,
-            "fill_categorical_mode": categorical,
-            "trim_whitespace": [],
-            "lowercase_categories": [],
-        })
+            raise ValueError(
+                f"training {corruption_type} could not be injected: "
+                + str(defect.get("skipped_reason"))
+            )
+
+        if corruption_type == "missingness":
+            corrupted_x = corruption.frame.copy(deep=True)
+            corrupted_y = train_y.copy(deep=True)
+            cleaned_x, cleaning = dataset_cleaning._transform(corrupted_x, {
+                "drop_exact_duplicates": False,
+                "fill_numeric_median": numeric,
+                "fill_categorical_mode": categorical,
+                "trim_whitespace": [],
+                "lowercase_categories": [],
+            })
+            cleaned_y = train_y.copy(deep=True)
+            injection_unit = "eligible_feature_cells"
+            injected_count = int(defect["injected_count"])
+            injection_records = defect["records"]
+            label_payload = {
+                "defect": defect,
+                "cell_labels": corruption.ground_truth["cell_labels"],
+            }
+            per_column_counts: dict[str, int] = {}
+        else:
+            corrupted_full = corruption.frame.copy(deep=True)
+            corrupted_y = pd.to_numeric(
+                corrupted_full.pop(target_column), errors="raise"
+            ).astype(float)
+            corrupted_x = corrupted_full
+            cleaned_full, cleaning = dataset_cleaning._transform(corruption.frame, {
+                "drop_exact_duplicates": True,
+                "fill_numeric_median": [],
+                "fill_categorical_mode": [],
+                "trim_whitespace": [],
+                "lowercase_categories": [],
+            })
+            cleaned_y = pd.to_numeric(
+                cleaned_full.pop(target_column), errors="raise"
+            ).astype(float)
+            cleaned_x = cleaned_full
+            # Exact duplicate removal must restore the original aligned training
+            # feature/target pairs, not merely the original feature row count.
+            pd.testing.assert_frame_equal(
+                cleaned_x.reset_index(drop=True), train_x.reset_index(drop=True),
+                check_dtype=False,
+            )
+            pd.testing.assert_series_equal(
+                cleaned_y.reset_index(drop=True), train_y.reset_index(drop=True),
+                check_names=False,
+            )
+            injection_unit = "source_training_rows"
+            injected_count = int(defect["injected_count"])
+            injection_records = corruption.ground_truth["duplicate_rows"]
+            label_payload = {
+                "defect": defect,
+                "duplicate_rows": corruption.ground_truth["duplicate_rows"],
+            }
+            per_column_counts = {}
 
         test_reference = test_x.copy(deep=True)
         test_reference[target_column] = test_y
         test_hash = _frame_sha256(test_reference)
         test_snapshot = test_reference.copy(deep=True)
-        train_conditions = {"clean": train_x, "corrupted": corruption.frame, "cleaned_corrupted": cleaned}
+        train_conditions = {
+            "clean": (train_x, train_y),
+            "corrupted": (corrupted_x, corrupted_y),
+            "cleaned_corrupted": (cleaned_x, cleaned_y),
+        }
         conditions = {
-            name: _fit(train_conditions[name], test_x, train_y, test_y, numeric, categorical, float(alpha))
+            name: _fit(
+                train_conditions[name][0], test_x,
+                train_conditions[name][1], test_y,
+                numeric, categorical, float(alpha),
+            )
             for name in condition_names
         }
         pd.testing.assert_frame_equal(test_reference, test_snapshot)
         if _frame_sha256(test_reference) != test_hash:
             raise RuntimeError("the clean future test partition changed during the experiment")
 
-        labels = corruption.ground_truth["cell_labels"]
-        label_bytes = json.dumps(labels, sort_keys=True, separators=(",", ":")).encode("utf-8")
-        by_column: dict[str, int] = {}
-        for label in labels:
-            by_column[label["column"]] = by_column.get(label["column"], 0) + 1
+        label_bytes = json.dumps(
+            label_payload, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
         per_seed.append({
             "seed": seed,
             "corruption_seed": corruption_seed,
@@ -205,15 +280,22 @@ def run_regression_corruption_experiment(
                 "type_inference_scope": "clean_training_partition_only",
             },
             "corruption": {
-                "defect_type": "missingness",
+                "defect_type": corruption_type,
                 "rate": float(corruption_rate),
-                "injected_cells": int(defect["injected_count"]),
-                "per_column_counts": by_column,
+                "injection_unit": injection_unit,
+                "injected_count": injected_count,
+                "injected_cells": injected_count if corruption_type == "missingness" else None,
+                "injected_rows": injected_count if corruption_type == "duplicates" else None,
+                "corrupted_training_rows": len(corrupted_x),
+                "cleaned_training_rows": len(cleaned_x),
+                "per_column_counts": per_column_counts,
+                "ground_truth_records": injection_records,
                 "ground_truth_sha256": sha256(label_bytes).hexdigest(),
             },
             "cleaning": {
                 "changed": bool(cleaning["changed"]),
                 "changed_row_count": int(cleaning["preview"]["changed_row_count"]),
+                "removed_row_count": int(cleaning["preview"]["removed_row_count"]),
                 "operations": cleaning["preview"]["operations"],
             },
             "conditions": conditions,
@@ -240,7 +322,7 @@ def run_regression_corruption_experiment(
     ])
     reference = pd.concat([features, target.rename(target_column)], axis=1)
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "task_type": "regression",
         "model": "ridge_regression",
         "target_column": target_column,
@@ -248,7 +330,7 @@ def run_regression_corruption_experiment(
             "seeds": list(seed_values),
             "test_size": float(test_size),
             "split_strategy": "chronological_ordered_holdout",
-            "corruption_type": "missingness",
+            "corruption_type": corruption_type,
             "corruption_rate": float(corruption_rate),
             "ridge_alpha": float(alpha),
             "feature_columns": list(selected),
@@ -261,8 +343,9 @@ def run_regression_corruption_experiment(
         "limitations": [
             "The input frame must be chronologically ordered.",
             "Seeds vary training corruption; the temporal split is fixed.",
-            "Only training features receive missingness; target and future test rows remain untouched.",
-            "Median/mode imputation is one explicit policy, not a universal correction.",
+            "Only the selected training defect is injected; future test rows and targets remain untouched.",
+            "Duplicate corruption appends exact feature/target pairs and production cleaning removes exact duplicate rows.",
+            "Median/mode imputation is one explicit missingness policy, not a universal correction.",
             "Ridge uses a fixed alpha and one chronological holdout; no rolling-origin validation is performed.",
         ],
     }
