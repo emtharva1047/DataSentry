@@ -249,3 +249,47 @@ Compare three conditions on the same future test partition: (1) clean training, 
 Configuration: UCI Bike Sharing hourly dataset 275; target cnt; exclude casual and registered as direct target components; exclude instant as an identifier; derive day_index from dteday; eight semantic categorical and five numeric predictors; chronological 75/25 holdout; Ridge alpha 1.0; rates 1%, 5%, 10%; seeds 42, 123, 2026. Report per-seed injected duplicate rows, source-row lineage, training row counts before/after corruption and cleaning, exact ground-truth hash, clean/corrupted/cleaned MAE/RMSE/R2, fit runtime, paired cleaned-minus-corrupted deltas, means, and sample standard deviations (ddof=1).
 
 This experiment tests the effect of duplicated observations as increased training weight. It does not claim that exact duplicate removal is always appropriate: repeated rows may represent legitimate repeated events in other datasets. The clean reference itself must pass the exact-duplicate preflight. The model uses a single chronological holdout and fixed Ridge alpha; it is not rolling-origin validation or a tuned model. The future test partition and its targets remain untouched.
+
+
+### Downstream duplicate-row experiment — measured outcome (21 November 2026)
+
+The UCI Bike Sharing downstream regression workflow completed 18 rate/seed experiments: two corruption types (training-feature missingness and exact duplicate rows) × three rates (1%, 5%, 10%) × three seeds (42, 123, 2026). Each experiment fitted clean, corrupted, and cleaned-corrupted Ridge conditions, for 54 model fits. No requested trial was skipped.
+
+For duplicate corruption, the complete training frame included all 13 predictors and target cnt before duplicate insertion, preserving feature/target alignment. The 13,034-row chronological training partition received 131, 652, and 1,304 appended duplicate rows at 1%, 5%, and 10%, respectively. The production drop-exact-duplicates transform removed exactly those appended rows and restored the original feature/target pairs and 13,034-row count in every seed/rate run.
+
+The chronological future test partition contained 4,345 rows and was never passed to corruption or cleaning. Its SHA-256 was 2f9613a31116dbdb6e0e272c123778ed3a45e62783393ead8df8c14cb7aef309 for all 18 experiments.
+
+Clean baseline (identical for all rates; mean ± sample SD across seeds): MAE 100.722797 ± 0.000000; RMSE 135.412419 ± 0.000000; R² 0.621144 ± 0.000000.
+
+| Duplicate rate | Training condition | MAE | RMSE | R² |
+|---:|---|---:|---:|---:|
+| 1% | Corrupted | 100.730478 ± 0.067534 | 135.499997 ± 0.046698 | 0.620654 ± 0.000262 |
+| 1% | Cleaned-corrupted | 100.722797 ± 0.000000 | 135.412419 ± 0.000000 | 0.621144 ± 0.000000 |
+| 5% | Corrupted | 100.642324 ± 0.195718 | 135.397958 ± 0.069474 | 0.621225 ± 0.000389 |
+| 5% | Cleaned-corrupted | 100.722797 ± 0.000000 | 135.412419 ± 0.000000 | 0.621144 ± 0.000000 |
+| 10% | Corrupted | 100.816144 ± 0.247399 | 135.395768 ± 0.107894 | 0.621238 ± 0.000604 |
+| 10% | Cleaned-corrupted | 100.722797 ± 0.000000 | 135.412419 ± 0.000000 | 0.621144 ± 0.000000 |
+
+Paired cleaned-minus-corrupted deltas (mean ± sample SD, ddof=1):
+
+| Duplicate rate | ΔMAE | ΔRMSE | ΔR² |
+|---:|---:|---:|---:|
+| 1% | -0.007681 ± 0.067534 | -0.087578 ± 0.046698 | +0.000490 ± 0.000262 |
+| 5% | +0.080473 ± 0.195718 | +0.014461 ± 0.069474 | -0.000081 ± 0.000389 |
+| 10% | -0.093347 ± 0.247399 | +0.016651 ± 0.107894 | -0.000094 ± 0.000604 |
+
+Interpretation: exact duplicate insertion acts as additional training weight and produces small, mixed changes on this fixed chronological holdout. At 1%, duplicate removal slightly improves all three metrics; at 5%, it slightly worsens them; at 10%, MAE improves while RMSE and R² worsen slightly. These differences are small and dataset/split-specific. Because the injected rows are exact copies, production duplicate removal restores the original training data and therefore reproduces the clean baseline metrics exactly. This validates the operation for this controlled defect; it does not imply that repeated rows are always erroneous in event data.
+
+The workflow also reran the training-only missingness condition as a control. Those results remain in the JSON artifact; the 17 November missingness experiment and its interpretation remain documented above. This run's full JSON report includes both conditions, all per-seed metrics, duplicate source-row lineage, training row counts, ground-truth hashes, and test fingerprints.
+
+**Provenance**
+- Workflow: [Bike Sharing Downstream Regression Research run 44854541701](https://github.com/emtharva1047/DataSentry/actions/runs/44854541701).
+- Artifact: [uci-bike-sharing-regression](https://github.com/emtharva1047/DataSentry/actions/runs/44854541701/artifacts/14686439544), 674,877 bytes, retained until 21 December 2026.
+- Artifact ZIP SHA-256: 00a3a8164cb0c30103bb8336c4312fa6a5e5c9f195eafe3f4f58689978865725.
+- UCI archive SHA-256: b70182d0d0508e9abbb79306ce5c0cec34869000f8220175ac83d11dbe845401.
+- hour.csv SHA-256: e03de4ee4ef4dc376ac6e04bf829673c6269e8eba5c60fa121640fa2f829504f.
+- Analysis-frame SHA-256: 8ff14f833673fbad9c35ec3267c5c23335f98ba2b586e63bba67f98a755ee804.
+- Clean future test SHA-256: 2f9613a31116dbdb6e0e272c123778ed3a45e62783393ead8df8c14cb7aef309.
+- Software: Python 3.12.16, pandas 2.3.3, NumPy 2.5.5, scikit-learn 1.9.1.
+
+Limitations: one UCI reference, one chronological 75/25 split, fixed Ridge alpha 1.0, and three corruption seeds that vary duplicate selection but not the temporal split. This is not rolling-origin cross-validation or a general claim about duplicate handling in event datasets.
