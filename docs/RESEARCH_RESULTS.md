@@ -450,3 +450,55 @@ Both references passed with zero missing cells, zero exact duplicate rows, zero 
 5. These two references and three synthetic seeds are not independent datasets or a real-world prevalence sample. The results must not be generalized to arbitrary schemas or production data.
 
 The pure case-only benchmark closes the previously documented subtype-isolation gap. Additional downstream regression corruption families, repeated-seed baseline uncertainty, and final delivery remain outstanding.
+
+
+## UCI Bike Sharing downstream duplicate-row regression — 21 November 2026
+
+**Workflow:** [Bike Sharing Downstream Regression Research run 44854541701](https://github.com/emtharva1047/DataSentry/actions/runs/44854541701)  
+**Artifact:** [uci-bike-sharing-regression](https://github.com/emtharva1047/DataSentry/actions/runs/44854541701/artifacts/14686439544) (30-day retention; expires 21 December 2026)  
+**Artifact ZIP SHA-256:** 00a3a8164cb0c30103bb8336c4312fa6a5e5c9f195eafe3f4f58689978865725
+
+The workflow completed 18 rate/seed experiments: missingness and exact duplicate-row corruption × 1%, 5%, and 10% × seeds 42, 123, and 2026. Each experiment fitted clean, corrupted, and cleaned-corrupted Ridge conditions (54 model fits total). No trials were skipped.
+
+### Duplicate-row protocol and integrity checks
+
+- Dataset: UCI Bike Sharing hourly, dataset 275, DOI 10.24432/C5W894, CC BY 4.0.
+- Reference: 17,379 rows, 13 model predictors, target cnt.
+- Target components casual and registered were excluded; instant was used only for ordering; day_index was derived from dteday.
+- Chronological split: 13,034 training rows and 4,345 future test rows.
+- Duplicate injection operated on the combined training frame containing all selected features and cnt, preserving target alignment.
+- At 1%, 5%, and 10%, 131, 652, and 1,304 exact duplicate training rows were appended.
+- The production drop_exact_duplicates transform removed exactly the appended rows and restored the original training feature/target pairs and row count.
+- The future test partition was never passed to corruption or cleaning. Its SHA-256 (2f9613a31116dbdb6e0e272c123778ed3a45e62783393ead8df8c14cb7aef309) was identical for every rate and seed.
+
+### Measured duplicate-row results
+
+Values are mean ± sample standard deviation (ddof=1) across the three corruption seeds. The clean baseline is identical at all rates: MAE 100.722797 ± 0.000000, RMSE 135.412419 ± 0.000000, R² 0.621144 ± 0.000000.
+
+| Rate | Condition | MAE | RMSE | R² |
+|---:|---|---:|---:|---:|
+| 1% | Corrupted | 100.730478 ± 0.067534 | 135.499997 ± 0.046698 | 0.620654 ± 0.000262 |
+| 1% | Cleaned-corrupted | 100.722797 ± 0.000000 | 135.412419 ± 0.000000 | 0.621144 ± 0.000000 |
+| 5% | Corrupted | 100.642324 ± 0.195718 | 135.397958 ± 0.069474 | 0.621225 ± 0.000389 |
+| 5% | Cleaned-corrupted | 100.722797 ± 0.000000 | 135.412419 ± 0.000000 | 0.621144 ± 0.000000 |
+| 10% | Corrupted | 100.816144 ± 0.247399 | 135.395768 ± 0.107894 | 0.621238 ± 0.000604 |
+| 10% | Cleaned-corrupted | 100.722797 ± 0.000000 | 135.412419 ± 0.000000 | 0.621144 ± 0.000000 |
+
+Paired cleaned-minus-corrupted deltas:
+
+| Rate | ΔMAE | ΔRMSE | ΔR² |
+|---:|---:|---:|---:|
+| 1% | -0.007681 ± 0.067534 | -0.087578 ± 0.046698 | +0.000490 ± 0.000262 |
+| 5% | +0.080473 ± 0.195718 | +0.014461 ± 0.069474 | -0.000081 ± 0.000389 |
+| 10% | -0.093347 ± 0.247399 | +0.016651 ± 0.107894 | -0.000094 ± 0.000604 |
+
+Exact duplicate insertion creates additional training weight and caused small, mixed metric changes. The production cleaning transform restored the clean training rows and reproduced the clean baseline metrics exactly. This is a controlled validation of duplicate removal for this reference, not a general rule that repeated event rows are invalid.
+
+### Source provenance and software
+
+- UCI archive SHA-256: b70182d0d0508e9abbb79306ce5c0cec34869000f8220175ac83d11dbe845401.
+- hour.csv SHA-256: e03de4ee4ef4dc376ac6e04bf829673c6269e8eba5c60fa121640fa2f829504f.
+- Analysis-frame SHA-256: 8ff14f833673fbad9c35ec3267c5c23335f98ba2b586e63bba67f98a755ee804.
+- Python 3.12.16, pandas 2.3.3, NumPy 2.5.5, scikit-learn 1.9.1.
+
+Limitations: one reference, one chronological 75/25 split, fixed Ridge alpha 1.0, and seeds that vary corruption selection but not the temporal split. This is not rolling-origin cross-validation. The same artifact includes the rerun missingness control; the earlier 17 November missingness result remains documented in its original section.

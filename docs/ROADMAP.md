@@ -146,3 +146,13 @@ The UCI Wine and Bike Sharing detector workflows were rerun on the quality-versi
 - Pure case-only injection swaps letter case without adding whitespace. The production quality-v2 detector achieved precision/recall/F1 = 1.0 at every tested rate on both references; F1 sample SD was 0.
 - Both clean-reference preflights reported zero missing cells, duplicate rows, categorical inconsistencies, and invalid numeric cells.
 - Results are specific to the controlled swapcase generator and the two documented references; they do not estimate real-world performance. Full per-seed metrics, runtimes, memory proxies, hashes, and artifact links are in docs/RESEARCH_RESULTS.md.
+
+
+## 21 November 2026 — Duplicate-row downstream regression (implementation)
+
+The Bike Sharing regression runner now supports two training-only defect families: missingness in feature cells and exact duplicate insertion of complete feature/target rows. Duplicate corruption operates on the combined training frame so labels remain aligned with their duplicated feature rows. The existing production drop-exact-duplicates transform is applied for the cleaned-corrupted condition. Tests assert that cleaning restores the original training pairs and row count, while the future chronological test partition remains untouched with an identical fingerprint across seeds and rates. The GitHub Actions runner evaluates both conditions at 1%, 5%, and 10% with seeds 42, 123, and 2026. Measured results and artifact provenance are recorded in the following section and docs/RESEARCH_RESULTS.md.
+
+
+## 21 November 2026 — Duplicate-row downstream regression (measured)
+
+The Bike Sharing downstream regression workflow completed both missingness and exact duplicate-row conditions at rates 1%, 5%, and 10% over seeds 42, 123, and 2026. Duplicate injection operated on the combined training feature/target frame, adding 131, 652, and 1,304 complete rows to the 13,034-row training partition. The production exact-duplicate removal transform restored the original aligned training pairs and row count for every run. The same 4,345-row chronological future test partition remained untouched with SHA-256 2f9613a31116dbdb6e0e272c123778ed3a45e62783393ead8df8c14cb7aef309 across all runs. Measured model effects were small and mixed; the cleaned condition exactly matched the clean baseline. See docs/RESEARCH_RESULTS.md for metrics, paired deltas, and artifact provenance.

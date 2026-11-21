@@ -77,3 +77,46 @@ def test_regression_experiment_requires_three_distinct_seeds():
         run_regression_corruption_experiment(_frame(), target_column="target", seeds=(42, 42, 2026))
     with pytest.raises(ValueError, match="between 3 and 10"):
         run_regression_corruption_experiment(_frame(), target_column="target", seeds=(42, 123))
+
+
+def test_duplicate_corruption_keeps_feature_target_pairs_aligned_and_cleaning_restores_training():
+    frame = _frame()
+    original = frame.copy(deep=True)
+    report = run_regression_corruption_experiment(
+        frame, target_column="target", numeric_columns=["temperature", "humidity"],
+        categorical_columns=["season"], seeds=(42, 123, 2026), test_size=0.25,
+        corruption_rate=0.05, corruption_type="duplicates",
+    )
+    assert report["configuration"]["corruption_type"] == "duplicates"
+    assert report["configuration"]["split_strategy"] == "chronological_ordered_holdout"
+    assert report["aggregates"]["clean"]["seed_count"] == 3
+    assert report["aggregates"]["corrupted"]["seed_count"] == 3
+    assert report["aggregates"]["cleaned_corrupted"]["seed_count"] == 3
+    assert report["paired_cleaned_minus_corrupted"]["seed_count"] == 3
+    test_hashes = set()
+    for run in report["per_seed"]:
+        assert run["split"]["test_partition_untouched"] is True
+        test_hashes.add(run["split"]["clean_test_sha256"])
+        corruption = run["corruption"]
+        assert corruption["injection_unit"] == "source_training_rows"
+        assert corruption["injected_rows"] > 0
+        assert corruption["injected_count"] == corruption["injected_rows"]
+        assert corruption["corrupted_training_rows"] == run["split"]["train_rows"] + corruption["injected_rows"]
+        assert corruption["cleaned_training_rows"] == run["split"]["train_rows"]
+        assert len(corruption["ground_truth_sha256"]) == 64
+        assert len(corruption["ground_truth_records"]) == corruption["injected_rows"]
+        assert run["cleaning"]["removed_row_count"] == corruption["injected_rows"]
+        assert run["cleaning"]["changed"] is True
+        assert run["cleaning"]["operations"][0]["operation"] == "drop_exact_duplicates"
+        assert np.isfinite(run["conditions"]["corrupted"]["metrics"]["mae"])
+        assert np.isfinite(run["conditions"]["cleaned_corrupted"]["metrics"]["rmse"])
+    assert len(test_hashes) == 1
+    pd.testing.assert_frame_equal(frame, original)
+
+
+def test_regression_experiment_rejects_unsupported_corruption_type():
+    with pytest.raises(ValueError, match="corruption_type"):
+        run_regression_corruption_experiment(
+            _frame(), target_column="target", seeds=(42, 123, 2026),
+            corruption_type="invalid_values",
+        )
