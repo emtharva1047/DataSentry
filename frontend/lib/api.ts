@@ -503,6 +503,8 @@ export type CleaningOperationSummary = {
   affected_cells?: number;
   affected_rows?: number;
   imputation_value?: string;
+  missing_cells_filled?: number;
+  invalid_cells_coerced_to_missing?: number;
   review_required?: boolean;
   comparison?: string;
 };
