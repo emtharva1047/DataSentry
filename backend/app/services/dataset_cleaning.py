@@ -201,7 +201,7 @@ def _transform(
         median = float(np.median(finite_values))
         if not np.isfinite(median):
             raise DatasetCleaningRequestError(f"'{column}' has no finite median.")
-        normalized = pd.Series(numeric_values, index=result.index).where(finite_mask, np.nan)
+        normalized = original.astype(object).where(finite_mask, np.nan)
         result[column] = normalized.fillna(format(median, ".15g"))
         summary.append({
             "operation": "fill_numeric_median",
