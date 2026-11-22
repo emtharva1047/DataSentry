@@ -329,13 +329,13 @@ The 20 November 2026 run completed both references with no skipped trials. Measu
 
 ### Downstream duplicate-row regression experiment
 
-Run both supported training-only corruption conditions from the backend directory:
+Run all three supported training-only corruption conditions from the backend directory:
 
 ~~~powershell
 python -m scripts.run_bike_sharing_regression_experiment --rates 0.01,0.05,0.10 --corruption-types missingness,duplicates,invalid_values --seeds 42,123,2026 --test-size 0.25 --alpha 1.0 --output research-results/uci-bike-sharing-regression.json
 ~~~
 
-For duplicate corruption, the complete training row includes its regression target before exact copies are appended, preserving feature/target alignment. For invalid-value corruption, exact ground-truth tokens replace selected numeric training cells only. The explicit production fill_numeric_median operation parses finite values, treats non-numeric/non-finite observed cells as missing, and imputes them from the median of finite training values; preview evidence separates invalid cells from pre-existing missing cells. The future chronological test partition is never passed to corruption or cleaning. Per-seed counts, ground-truth hashes, clean/corrupted/cleaned metrics, and paired cleaned-minus-corrupted deltas are retained. The 22 November workflow evaluates missingness, duplicates, and invalid values at all three rates and seeds; measured results are pending artifact inspection. See docs/RESEARCH_RESULTS.md for measured metrics, provenance, and limitations.
+For duplicate corruption, the complete training row includes its regression target before exact copies are appended, preserving feature/target alignment. For invalid-value corruption, exact ground-truth tokens replace selected numeric training cells only. The explicit production fill_numeric_median operation parses finite values, treats non-numeric/non-finite observed cells as missing, and imputes them from the median of finite training values; preview evidence separates invalid cells from pre-existing missing cells. The future chronological test partition is never passed to corruption or cleaning. Per-seed counts, ground-truth hashes, clean/corrupted/cleaned metrics, and paired cleaned-minus-corrupted deltas are retained. The 22 November workflow completed 27 experiments (three defect types × three rates × three seeds; 81 Ridge fits) with no skipped trials. Invalid-value injection was applied to the five declared numeric predictors only; the production cleaner converted exactly 652, 3,259, and 6,517 injected cells to missing at 1%, 5%, and 10%, respectively. The corrupted model pipeline and production-cleaned condition produced identical metrics, confirming median-imputation parity. Results, paired deltas, test-set fingerprint, provenance, and limitations are recorded in docs/RESEARCH_RESULTS.md.
 
 
 The shared synthetic corruption generator accepts explicit numeric feature columns from typed reference adapters. This prevents numeric-looking categorical codes from being treated as continuous fields during invalid-value and numerical-anomaly experiments.

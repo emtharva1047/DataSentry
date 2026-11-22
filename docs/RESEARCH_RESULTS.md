@@ -502,3 +502,44 @@ Exact duplicate insertion creates additional training weight and caused small, m
 - Python 3.12.16, pandas 2.3.3, NumPy 2.5.5, scikit-learn 1.9.1.
 
 Limitations: one reference, one chronological 75/25 split, fixed Ridge alpha 1.0, and seeds that vary corruption selection but not the temporal split. This is not rolling-origin cross-validation. The same artifact includes the rerun missingness control; the earlier 17 November missingness result remains documented in its original section.
+
+
+## UCI Bike Sharing downstream invalid-value regression — 22 November 2026
+
+**Workflow:** [Bike Sharing Downstream Regression Research run 44974867255](https://github.com/emtharva1047/DataSentry/actions/runs/44974867255)  
+**Artifact:** [uci-bike-sharing-regression](https://github.com/emtharva1047/DataSentry/actions/runs/44974867255/artifacts/14734839544) (30-day retention; expires 22 December 2026)  
+**Artifact ZIP SHA-256:** ee7522b96b480136567f7d7012446d677375ae7d846d0eb0e693059478423e54  
+**JSON SHA-256:** d9d971c8f98cd881fbb5bca54300da19c4866ffecfab310204d46e5bd22f6a80
+
+The completed workflow evaluated three training-only defect families (missingness, exact duplicates, invalid_values) × three corruption rates (1%, 5%, 10%) × three seeds (42, 123, 2026): 27 rate/seed experiments and 81 Ridge fits. No trials were skipped. The invalid-value condition comprised nine rate/seed experiments and 27 model fits.
+
+### Invalid-value protocol and integrity
+
+- Dataset: UCI Bike Sharing hourly, dataset 275, DOI 10.24432/C5W894, CC BY 4.0; 17,379 rows, target cnt, 13 predictors.
+- Chronological split: 13,034 training rows and 4,345 future test rows. casual and registered were excluded as direct target components; instant was used only for ordering; day_index was derived from dteday.
+- The corruption generator received the explicit numeric feature list (temp, atemp, hum, windspeed, day_index). This prevents numeric-looking category-code strings from being treated as continuous predictors.
+- Invalid tokens were injected only into training features, never into cnt or the future test partition. Rates 1%, 5%, and 10% affected 652, 3,259, and 6,517 numeric cells respectively, identical in count across the three seeds at each rate.
+- The production fill_numeric_median operation converted exactly the injected invalid cells to missing, then imputed from finite training values. It reported zero pre-existing missing cells for these experiments, retained all 13,034 training rows, and did not modify the uploaded/reference source.
+- The leakage-safe model pipeline independently coerced the invalid tokens to missing and fit its median imputer on training data only. The explicit production-cleaned condition produced exactly the same MAE/RMSE/R² as the pipeline-imputed corrupted condition for every seed and rate.
+- The future test partition was never passed to corruption or cleaning. Its SHA-256 (2f9613a31116dbdb6e0e272c123778ed3a45e62783393ead8df8c14cb7aef309) was identical across all experiments.
+
+### Measured invalid-value results
+
+Values are mean ± sample standard deviation (ddof=1) across seeds 42, 123, and 2026. The clean baseline is identical at every rate: MAE 100.722797 ± 0.000000, RMSE 135.412419 ± 0.000000, R² 0.621144 ± 0.000000.
+
+| Rate | Condition | MAE | RMSE | R² |
+|---:|---|---:|---:|---:|
+| 1% | Corrupted | 100.792503 ± 0.017518 | 135.356747 ± 0.009090 | 0.621456 ± 0.000051 |
+| 1% | Production-cleaned | 100.792503 ± 0.017518 | 135.356747 ± 0.009090 | 0.621456 ± 0.000051 |
+| 5% | Corrupted | 100.878201 ± 0.112688 | 135.094531 ± 0.015565 | 0.622921 ± 0.000087 |
+| 5% | Production-cleaned | 100.878201 ± 0.112688 | 135.094531 ± 0.015565 | 0.622921 ± 0.000087 |
+| 10% | Corrupted | 101.092482 ± 0.253956 | 134.789148 ± 0.025729 | 0.624624 ± 0.000143 |
+| 10% | Production-cleaned | 101.092482 ± 0.253956 | 134.789148 ± 0.025729 | 0.624624 ± 0.000143 |
+
+The paired production-cleaned-minus-corrupted deltas for MAE, RMSE, and R² were exactly 0.000000 (sample SD 0.000000) at all three rates. Mean fit runtimes (seconds) for clean/corrupted/production-cleaned conditions were respectively: 1% 0.071251/0.080507/0.081300; 5% 0.069811/0.080506/0.081008; 10% 0.070897/0.080773/0.080075.
+
+### Interpretation and limitations
+
+This experiment shows parity between two explicit training-only preprocessing paths: the model pipeline's numeric coercion plus training-fitted median imputer, and the production fill_numeric_median cleaning operation. The cleaned condition did not improve predictive metrics over the corrupted condition because both paths imputed the same invalid cells from the same training-only finite-value median. Relative to the clean baseline, MAE increased while RMSE and R² improved slightly as random feature cells were removed from model input; the effects are mixed and specific to this split. No general claim of predictive benefit or harm is warranted.
+
+The injected token is an intentionally obvious non-numeric sentinel. This experiment does not test plausible-but-wrong finite numbers, unit errors, locale-specific parsing, or semantic range violations. It uses one chronological 75/25 holdout and a fixed Ridge alpha 1.0, not rolling-origin cross-validation. The three seeds vary corruption positions, not the temporal split. The results should not be generalized beyond this controlled reference.

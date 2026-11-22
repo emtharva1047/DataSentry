@@ -20,7 +20,7 @@ def _csv_values(value: str, converter):
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run DataSentry's UCI Bike Sharing downstream regression experiments.")
-    parser.add_argument("--rates", default="0.01,0.05,0.10", help="Training-feature missingness rates.")
+    parser.add_argument("--rates", default="0.01,0.05,0.10", help="Cell-level feature or duplicate-row corruption rates for each selected defect type.")
     parser.add_argument("--seeds", default=",".join(str(x) for x in DEFAULT_REGRESSION_SEEDS))
     parser.add_argument("--corruption-types", default="missingness,duplicates,invalid_values", help="Distinct training-only corruption types: missingness,duplicates,invalid_values.")
     parser.add_argument("--test-size", type=float, default=0.25)
