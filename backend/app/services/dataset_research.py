@@ -113,8 +113,10 @@ def _resolve_numeric_columns(
     if isinstance(requested, (str, bytes)):
         raise ValueError("numeric_columns must be a sequence of column names")
     names = list(requested)
-    if not names or len(names) != len(set(names)):
-        raise ValueError("numeric_columns must contain distinct, non-empty column names")
+    if not names:
+        return [], {}
+    if len(names) != len(set(names)):
+        raise ValueError("numeric_columns must contain distinct column names")
     missing = [name for name in names if name not in frame.columns]
     if missing:
         raise ValueError("numeric_columns contains unknown columns: " + ", ".join(map(str, missing)))

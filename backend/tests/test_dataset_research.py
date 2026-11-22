@@ -96,6 +96,16 @@ def test_explicit_numeric_columns_keep_numeric_code_categories_out_of_numeric_de
     }))
 
 
+def test_explicit_empty_numeric_columns_are_allowed_for_categorical_only_frames():
+    frame = pd.DataFrame({"category": ["1", "2", "3", "4"]})
+    result = inject_synthetic_corruption(
+        frame, rate=0.25, seed=3, defects=["categorical_inconsistency"],
+        numeric_columns=[],
+    )
+    assert result.ground_truth["numeric_columns_used"] == []
+    assert result.ground_truth["categorical_columns_used"] == ["category"]
+
+
 def test_explicit_numeric_columns_reject_unknown_or_non_numeric_columns():
     frame = _reference_frame()
     with pytest.raises(ValueError, match="unknown columns"):
