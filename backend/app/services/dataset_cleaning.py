@@ -187,26 +187,28 @@ def _transform(
         })
 
     for column in request["fill_numeric_median"]:
-        non_missing = result[column].dropna()
-        if non_missing.empty:
+        original = result[column]
+        numeric = pd.to_numeric(original, errors="coerce")
+        numeric_values = numeric.to_numpy(dtype=float, na_value=np.nan)
+        finite_mask = np.isfinite(numeric_values)
+        invalid_count = int((original.notna().to_numpy() & ~finite_mask).sum())
+        missing_count = int(original.isna().sum())
+        finite_values = numeric_values[finite_mask]
+        if finite_values.size == 0:
             raise DatasetCleaningRequestError(
-                f"Cannot calculate a median for '{column}' because it has no observed values."
+                f"Cannot calculate a median for '{column}' because it has no finite numeric values."
             )
-        numeric = pd.to_numeric(non_missing, errors="coerce")
-        finite = np.isfinite(numeric.to_numpy(dtype=float))
-        if numeric.isna().any() or not finite.all():
-            raise DatasetCleaningRequestError(
-                f"'{column}' contains non-numeric or non-finite values; median imputation was not applied."
-            )
-        median = float(numeric.median())
+        median = float(np.median(finite_values))
         if not np.isfinite(median):
             raise DatasetCleaningRequestError(f"'{column}' has no finite median.")
-        missing_count = int(result[column].isna().sum())
-        result[column] = result[column].fillna(format(median, ".15g"))
+        normalized = pd.Series(numeric_values, index=result.index).where(finite_mask, np.nan)
+        result[column] = normalized.fillna(format(median, ".15g"))
         summary.append({
             "operation": "fill_numeric_median",
             "columns": [column],
-            "affected_cells": missing_count,
+            "affected_cells": missing_count + invalid_count,
+            "missing_cells_filled": missing_count,
+            "invalid_cells_coerced_to_missing": invalid_count,
             "imputation_value": format(median, ".15g"),
         })
 
