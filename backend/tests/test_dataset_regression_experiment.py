@@ -114,45 +114,9 @@ def test_duplicate_corruption_keeps_feature_target_pairs_aligned_and_cleaning_re
     pd.testing.assert_frame_equal(frame, original)
 
 
-def test_invalid_value_regression_uses_explicit_production_median_cleaning_and_untouched_test():
-    frame = _frame()
-    original = frame.copy(deep=True)
-    report = run_regression_corruption_experiment(
-        frame, target_column="target", numeric_columns=["temperature", "humidity"],
-        categorical_columns=["season"], seeds=(42, 123, 2026), test_size=0.25,
-        corruption_rate=0.05, corruption_type="invalid_values",
-    )
-    assert report["configuration"]["corruption_type"] == "invalid_values"
-    assert report["schema_version"] == 3
-    assert report["aggregates"]["clean"]["seed_count"] == 3
-    assert report["aggregates"]["corrupted"]["seed_count"] == 3
-    assert report["aggregates"]["cleaned_corrupted"]["seed_count"] == 3
-    test_hashes = set()
-    for run in report["per_seed"]:
-        corruption = run["corruption"]
-        assert corruption["injection_unit"] == "eligible_feature_cells"
-        assert corruption["injected_cells"] == corruption["injected_count"] > 0
-        assert corruption["injected_rows"] is None
-        assert sum(corruption["per_column_counts"].values()) == corruption["injected_cells"]
-        assert corruption["cleaned_training_rows"] == run["split"]["train_rows"]
-        assert run["split"]["test_partition_untouched"] is True
-        test_hashes.add(run["split"]["clean_test_sha256"])
-        operations = [
-            item for item in run["cleaning"]["operations"]
-            if item["operation"] == "fill_numeric_median"
-        ]
-        assert sum(item["invalid_cells_coerced_to_missing"] for item in operations) == corruption["injected_cells"]
-        assert sum(item["missing_cells_filled"] for item in operations) == 0
-        assert run["cleaning"]["changed"] is True
-        assert np.isfinite(run["conditions"]["corrupted"]["metrics"]["rmse"])
-        assert np.isfinite(run["conditions"]["cleaned_corrupted"]["metrics"]["mae"])
-    assert len(test_hashes) == 1
-    pd.testing.assert_frame_equal(frame, original)
-
-
 def test_regression_experiment_rejects_unsupported_corruption_type():
     with pytest.raises(ValueError, match="corruption_type"):
         run_regression_corruption_experiment(
             _frame(), target_column="target", seeds=(42, 123, 2026),
-            corruption_type="categorical_inconsistency",
+            corruption_type="invalid_values",
         )

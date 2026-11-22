@@ -77,6 +77,33 @@ def test_all_five_corruptions_return_exact_cell_and_row_labels():
     pd.testing.assert_frame_equal(original, original_copy)
 
 
+def test_explicit_numeric_columns_keep_numeric_code_categories_out_of_numeric_defects():
+    frame = pd.DataFrame({
+        "temperature": [float(index + 1) for index in range(8)],
+        "season_code": ["1", "2", "3", "4", "1", "2", "3", "4"],
+    })
+    result = inject_synthetic_corruption(
+        frame, rate=0.25, seed=11, defects=["invalid_values"],
+        numeric_columns=["temperature"],
+    )
+    assert result.ground_truth["numeric_columns_used"] == ["temperature"]
+    assert result.ground_truth["categorical_columns_used"] == ["season_code"]
+    assert len(result.ground_truth["cell_labels"]) == 2
+    assert all(item["column"] == "temperature" for item in result.ground_truth["cell_labels"])
+    pd.testing.assert_frame_equal(frame, pd.DataFrame({
+        "temperature": [float(index + 1) for index in range(8)],
+        "season_code": ["1", "2", "3", "4", "1", "2", "3", "4"],
+    }))
+
+
+def test_explicit_numeric_columns_reject_unknown_or_non_numeric_columns():
+    frame = _reference_frame()
+    with pytest.raises(ValueError, match="unknown columns"):
+        inject_synthetic_corruption(frame, defects=["invalid_values"], numeric_columns=["missing"])
+    with pytest.raises(ValueError, match="finite numeric values"):
+        inject_synthetic_corruption(frame, defects=["invalid_values"], numeric_columns=["city"])
+
+
 def test_corruption_is_deterministic_for_the_same_seed():
     frame = _reference_frame()
     first = inject_synthetic_corruption(frame, rate=0.05, seed=42)

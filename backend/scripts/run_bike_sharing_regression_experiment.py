@@ -1,4 +1,4 @@
-"""Run UCI Bike Sharing training-only missingness, duplicate, and invalid-value regression experiments."""
+"""Run UCI Bike Sharing training-only missingness and duplicate regression experiments."""
 from __future__ import annotations
 import argparse
 import json
@@ -22,7 +22,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run DataSentry's UCI Bike Sharing downstream regression experiments.")
     parser.add_argument("--rates", default="0.01,0.05,0.10", help="Training-feature missingness rates.")
     parser.add_argument("--seeds", default=",".join(str(x) for x in DEFAULT_REGRESSION_SEEDS))
-    parser.add_argument("--corruption-types", default="missingness,duplicates,invalid_values", help="Distinct training-only corruption types: missingness,duplicates,invalid_values.")
+    parser.add_argument("--corruption-types", default="missingness,duplicates", help="Distinct training-only corruption types: missingness,duplicates.")
     parser.add_argument("--test-size", type=float, default=0.25)
     parser.add_argument("--alpha", type=float, default=1.0)
     parser.add_argument("--output", type=Path, default=Path("research-results/uci-bike-sharing-regression.json"))
@@ -57,7 +57,6 @@ def main() -> int:
         "corruption_types": downstream["corruption_types"],
         "missingness_experiments": summarize(downstream["experiments"]),
         "duplicate_experiments": summarize(downstream["duplicate_experiments"]),
-        "invalid_value_experiments": summarize(downstream["invalid_value_experiments"]),
     }, indent=2, ensure_ascii=False, allow_nan=False))
     return 0
 

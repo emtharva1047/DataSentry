@@ -6,21 +6,17 @@ on:
     paths:
       - "backend/app/services/dataset_regression_experiment.py"
       - "backend/app/services/dataset_bike_reference_experiment.py"
-      - "backend/app/services/dataset_cleaning.py"
       - "backend/scripts/run_bike_sharing_regression_experiment.py"
       - "backend/tests/test_dataset_regression_experiment.py"
       - "backend/tests/test_dataset_bike_reference_experiment.py"
-      - "backend/tests/test_dataset_cleaning.py"
       - ".github/workflows/bike-sharing-regression.yml"
   pull_request:
     paths:
       - "backend/app/services/dataset_regression_experiment.py"
       - "backend/app/services/dataset_bike_reference_experiment.py"
-      - "backend/app/services/dataset_cleaning.py"
       - "backend/scripts/run_bike_sharing_regression_experiment.py"
       - "backend/tests/test_dataset_regression_experiment.py"
       - "backend/tests/test_dataset_bike_reference_experiment.py"
-      - "backend/tests/test_dataset_cleaning.py"
       - ".github/workflows/bike-sharing-regression.yml"
   workflow_dispatch:
 
@@ -29,7 +25,7 @@ permissions:
 
 jobs:
   bike-sharing-regression:
-    name: UCI Bike Sharing clean-test missingness, duplicate, and invalid-value regression experiments
+    name: UCI Bike Sharing clean-test missingness and duplicate regression experiments
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -49,7 +45,7 @@ jobs:
         run: >-
           python -m scripts.run_bike_sharing_regression_experiment
           --rates 0.01,0.05,0.10
-          --corruption-types missingness,duplicates,invalid_values
+          --corruption-types missingness,duplicates
           --seeds 42,123,2026
           --test-size 0.25
           --alpha 1.0

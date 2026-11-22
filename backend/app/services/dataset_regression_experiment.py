@@ -173,6 +173,7 @@ def run_regression_corruption_experiment(
             rate=float(corruption_rate),
             seed=corruption_seed,
             defects=[corruption_type],
+            numeric_columns=numeric,
         )
         defect = corruption.ground_truth["defects"][corruption_type]
         if defect["status"] != "completed":

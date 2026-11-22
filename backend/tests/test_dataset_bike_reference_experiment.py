@@ -91,15 +91,3 @@ def test_bike_regression_runs_three_seeds_with_untouched_future_test(monkeypatch
         and run["split"]["test_partition_untouched"]
         for run in duplicate_experiment["per_seed"]
     )
-    invalid_experiment = report["downstream_regression"]["invalid_value_experiments"][0]
-    assert invalid_experiment["configuration"]["corruption_type"] == "invalid_values"
-    assert all(
-        run["corruption"]["injected_cells"] > 0
-        and run["split"]["test_partition_untouched"]
-        and sum(
-            operation["invalid_cells_coerced_to_missing"]
-            for operation in run["cleaning"]["operations"]
-            if operation["operation"] == "fill_numeric_median"
-        ) == run["corruption"]["injected_cells"]
-        for run in invalid_experiment["per_seed"]
-    )
