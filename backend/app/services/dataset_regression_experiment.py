@@ -15,7 +15,7 @@ from .dataset_research import aggregate_seed_metrics, inject_synthetic_corruptio
 DEFAULT_REGRESSION_SEEDS = (42, 123, 2026)
 MINIMUM_REGRESSION_ROWS = 30
 MAX_REGRESSION_SEEDS = 10
-SUPPORTED_REGRESSION_CORRUPTIONS = ("missingness", "duplicates")
+SUPPORTED_REGRESSION_CORRUPTIONS = ("missingness", "duplicates", "invalid_values")
 
 
 def _frame_sha256(frame: pd.DataFrame) -> str:
@@ -126,10 +126,10 @@ def run_regression_corruption_experiment(
 ) -> dict[str, Any]:
     """Compare clean, corrupted, and production-cleaned training on a future holdout.
 
-    Missingness is injected into training features. Duplicate corruption appends
-    exact copies of complete training rows, including their target, so feature
-    and label alignment is preserved. The chronological future test partition
-    is never passed to corruption or cleaning.
+    Missingness and invalid-value tokens are injected into training features.
+    Duplicate corruption appends exact copies of complete training rows,
+    including their target, so feature/label alignment is preserved. The
+    chronological future test partition is never passed to corruption or cleaning.
     """
     if isinstance(alpha, (bool, np.bool_)) or not np.isfinite(alpha) or float(alpha) <= 0:
         raise ValueError("alpha must be a finite number greater than zero")
@@ -173,6 +173,7 @@ def run_regression_corruption_experiment(
             rate=float(corruption_rate),
             seed=corruption_seed,
             defects=[corruption_type],
+            numeric_columns=numeric,
         )
         defect = corruption.ground_truth["defects"][corruption_type]
         if defect["status"] != "completed":
@@ -181,13 +182,13 @@ def run_regression_corruption_experiment(
                 + str(defect.get("skipped_reason"))
             )
 
-        if corruption_type == "missingness":
+        if corruption_type in {"missingness", "invalid_values"}:
             corrupted_x = corruption.frame.copy(deep=True)
             corrupted_y = train_y.copy(deep=True)
             cleaned_x, cleaning = dataset_cleaning._transform(corrupted_x, {
                 "drop_exact_duplicates": False,
                 "fill_numeric_median": numeric,
-                "fill_categorical_mode": categorical,
+                "fill_categorical_mode": categorical if corruption_type == "missingness" else [],
                 "trim_whitespace": [],
                 "lowercase_categories": [],
             })
@@ -200,6 +201,16 @@ def run_regression_corruption_experiment(
                 "cell_labels": corruption.ground_truth["cell_labels"],
             }
             per_column_counts: dict[str, int] = {}
+            for record in injection_records:
+                column = str(record["column"])
+                per_column_counts[column] = per_column_counts.get(column, 0) + 1
+            if corruption_type == "invalid_values":
+                for column in numeric:
+                    values = pd.to_numeric(cleaned_x[column], errors="coerce").to_numpy(dtype=float)
+                    if not np.isfinite(values).all():
+                        raise RuntimeError(
+                            f"production median cleaning left invalid numeric values in '{column}'"
+                        )
         else:
             corrupted_full = corruption.frame.copy(deep=True)
             corrupted_y = pd.to_numeric(
@@ -284,7 +295,7 @@ def run_regression_corruption_experiment(
                 "rate": float(corruption_rate),
                 "injection_unit": injection_unit,
                 "injected_count": injected_count,
-                "injected_cells": injected_count if corruption_type == "missingness" else None,
+                "injected_cells": injected_count if corruption_type in {"missingness", "invalid_values"} else None,
                 "injected_rows": injected_count if corruption_type == "duplicates" else None,
                 "corrupted_training_rows": len(corrupted_x),
                 "cleaned_training_rows": len(cleaned_x),
@@ -322,7 +333,7 @@ def run_regression_corruption_experiment(
     ])
     reference = pd.concat([features, target.rename(target_column)], axis=1)
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "task_type": "regression",
         "model": "ridge_regression",
         "target_column": target_column,
@@ -346,6 +357,7 @@ def run_regression_corruption_experiment(
             "Only the selected training defect is injected; future test rows and targets remain untouched.",
             "Duplicate corruption appends exact feature/target pairs and production cleaning removes exact duplicate rows.",
             "Median/mode imputation is one explicit missingness policy, not a universal correction.",
+            "For invalid_values, the selected numeric-median cleaning operation explicitly coerces non-numeric and non-finite cells to missing before imputation; cells are counted separately in cleaning evidence.",
             "Ridge uses a fixed alpha and one chronological holdout; no rolling-origin validation is performed.",
         ],
     }
