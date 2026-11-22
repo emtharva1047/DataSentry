@@ -103,6 +103,39 @@ def _infer_numeric_columns(frame: pd.DataFrame) -> tuple[list[str], dict[str, np
     return names, values_by_column
 
 
+def _resolve_numeric_columns(
+    frame: pd.DataFrame,
+    requested: Sequence[str] | None,
+) -> tuple[list[str], dict[str, np.ndarray]]:
+    """Resolve numeric semantics explicitly when parseable category codes exist."""
+    if requested is None:
+        return _infer_numeric_columns(frame)
+    if isinstance(requested, (str, bytes)):
+        raise ValueError("numeric_columns must be a sequence of column names")
+    names = list(requested)
+    if not names:
+        return [], {}
+    if len(names) != len(set(names)):
+        raise ValueError("numeric_columns must contain distinct column names")
+    missing = [name for name in names if name not in frame.columns]
+    if missing:
+        raise ValueError("numeric_columns contains unknown columns: " + ", ".join(map(str, missing)))
+    values_by_column: dict[str, np.ndarray] = {}
+    for name in names:
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError("numeric_columns must contain non-empty string names")
+        values = _numeric_values(frame[name])
+        valid_count = int(np.isfinite(values).sum())
+        observed_count = int(frame[name].notna().sum())
+        ratio = valid_count / observed_count if observed_count else 0.0
+        if valid_count < NUMERIC_MIN_VALID or ratio < NUMERIC_PARSEABILITY:
+            raise ValueError(
+                f"numeric_columns includes '{name}' but it does not contain enough finite numeric values"
+            )
+        values_by_column[name] = values
+    return names, values_by_column
+
+
 def _target_count(candidate_count: int, rate: float) -> int:
     if candidate_count <= 0:
         return 0
@@ -185,6 +218,7 @@ def inject_synthetic_corruption(
     seed: int = 42,
     defects: Iterable[str] | None = None,
     categorical_mode: str = "combined",
+    numeric_columns: Sequence[str] | None = None,
 ) -> CorruptionResult:
     """Return a deterministic corrupted copy and exact cell/row ground truth.
 
@@ -192,7 +226,9 @@ def inject_synthetic_corruption(
     cells for cell-level defects and source rows for duplicate insertion. The
     target count is rounded up, with at least one unit when candidates exist.
     Duplicate source rows are reserved before cell corruption so each appended
-    duplicate is an exact copy of an otherwise unchanged source row.
+    duplicate is an exact copy of an otherwise unchanged source row. Callers may
+    provide numeric_columns to preserve semantic types when categorical codes
+    are numeric-looking strings.
     """
     rate, seed, selected_defects, categorical_mode = _validate_input(
         frame, rate, seed, defects, categorical_mode
@@ -201,11 +237,11 @@ def inject_synthetic_corruption(
     working = original.astype(object).copy(deep=True)
     rng = np.random.default_rng(seed)
     row_count = len(original)
-    numeric_columns, numeric_values = _infer_numeric_columns(original)
+    numeric_column_names, numeric_values = _resolve_numeric_columns(original, numeric_columns)
     categorical_columns = [
         name
         for name in original.columns
-        if name not in numeric_columns
+        if name not in numeric_column_names
         and any(
             isinstance(value, str) and bool(value.strip())
             for value in original[name].dropna().tolist()
@@ -316,7 +352,7 @@ def inject_synthetic_corruption(
 
     if "invalid_values" in selected_defects:
         candidates = _cell_candidates(
-            original, numeric_columns, reserved_rows, reserved_cells
+            original, numeric_column_names, reserved_rows, reserved_cells
         )
         candidates = [
             (row_index, column)
@@ -334,7 +370,7 @@ def inject_synthetic_corruption(
     if "numerical_anomalies" in selected_defects:
         anomaly_values = {
             name: _high_anomaly_value(numeric_values[name])
-            for name in numeric_columns
+            for name in numeric_column_names
         }
         eligible_columns = [
             name for name, value in anomaly_values.items() if value is not None
@@ -388,7 +424,7 @@ def inject_synthetic_corruption(
         "categorical_corruption_mode": categorical_mode,
         "source_shape": {"rows": int(row_count), "columns": int(original.shape[1])},
         "corrupted_shape": {"rows": int(len(working)), "columns": int(working.shape[1])},
-        "numeric_columns_used": numeric_columns,
+        "numeric_columns_used": numeric_column_names,
         "categorical_columns_used": categorical_columns,
         "invalid_value_token": invalid_token,
         "label_convention": {

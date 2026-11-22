@@ -156,3 +156,16 @@ The Bike Sharing regression runner now supports two training-only defect familie
 ## 21 November 2026 — Duplicate-row downstream regression (measured)
 
 The Bike Sharing downstream regression workflow completed both missingness and exact duplicate-row conditions at rates 1%, 5%, and 10% over seeds 42, 123, and 2026. Duplicate injection operated on the combined training feature/target frame, adding 131, 652, and 1,304 complete rows to the 13,034-row training partition. The production exact-duplicate removal transform restored the original aligned training pairs and row count for every run. The same 4,345-row chronological future test partition remained untouched with SHA-256 2f9613a31116dbdb6e0e272c123778ed3a45e62783393ead8df8c14cb7aef309 across all runs. Measured model effects were small and mixed; the cleaned condition exactly matched the clean baseline. See docs/RESEARCH_RESULTS.md for metrics, paired deltas, and artifact provenance.
+
+
+## 22 November 2026 — Invalid-value downstream regression (implementation)
+
+The Bike Sharing downstream regression runner now includes a training-only invalid-value condition. The existing seeded generator replaces eligible numeric feature cells with a unique non-numeric token and records exact cell labels. The production fill_numeric_median operation now explicitly converts non-numeric/non-finite observed values to missing and imputes them using the median of finite training values. Its preview evidence separates invalid cells from pre-existing missing cells. The corrupted baseline and cleaned-corrupted baseline are compared on the same untouched chronological test partition. The workflow completed 27 missingness, duplicate, and invalid-value experiments across 1%, 5%, and 10% and seeds 42, 123, and 2026. For invalid values, the production cleaner's invalid-cell counts exactly matched injected ground truth; the cleaned condition reproduced the model pipeline's native median-imputation metrics. The future test partition remained untouched. Full measured results and artifact provenance are recorded in docs/RESEARCH_RESULTS.md.
+
+
+The 22 November invalid-value regression adapter now passes declared numeric feature columns into the shared corruption generator, preserving numeric-looking categorical codes as categorical fields.
+
+
+## 22 November 2026 — Invalid-value downstream regression (measured)
+
+The UCI Bike Sharing workflow completed 27 experiments (three defect types × three rates × three seeds; 81 Ridge fits). Invalid-value injection was limited to the five explicitly declared numeric predictors, avoiding numeric-looking category-code strings. The production fill_numeric_median operation reported exactly the injected invalid-cell count, zero pre-existing missing cells, and no row loss. The cleaned-corrupted condition reproduced the leakage-safe model pipeline's native median-imputation metrics exactly. The chronological future test partition retained the same SHA-256 across runs. See docs/RESEARCH_RESULTS.md for measured metrics and provenance. Numerical-anomaly downstream regression and final delivery hardening remain.

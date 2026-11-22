@@ -28,7 +28,7 @@ function number(value: number): string {
 function operationLabel(operation: CleaningOperationName): string {
   const labels: Record<CleaningOperationName, string> = {
     drop_exact_duplicates: "Remove exact duplicate rows",
-    fill_numeric_median: "Fill missing numeric values with median",
+    fill_numeric_median: "Coerce invalid numeric values / fill with median",
     fill_categorical_mode: "Fill missing categories with mode",
     trim_whitespace: "Trim leading and trailing whitespace",
     lowercase_categories: "Normalize category text to lowercase",
@@ -642,6 +642,10 @@ export default function CleaningPanel({ dataset }: { dataset: Dataset | null }) 
                           ? number(operation.affected_rows) + " rows"
                           : number(operation.affected_cells ?? 0) + " cells"}
                         {operation.imputation_value ? " · value " + operation.imputation_value : ""}
+                        {operation.invalid_cells_coerced_to_missing !== undefined
+                          ? " · " + number(operation.invalid_cells_coerced_to_missing) + " invalid → missing · " +
+                            number(operation.missing_cells_filled ?? 0) + " missing filled"
+                          : ""}
                       </span>
                     </li>
                   ))}

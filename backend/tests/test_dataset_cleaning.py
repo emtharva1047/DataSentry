@@ -207,26 +207,58 @@ def test_noop_apply_does_not_create_version(client):
     assert list(version_dir.glob("*.csv")) == []
 
 
-def test_numeric_median_rejects_mixed_non_numeric_values(client):
-    test_client, _, version_dir = client
+def test_numeric_median_coerces_invalid_and_nonfinite_values_before_imputation(client):
+    test_client, upload_dir, version_dir = client
+    payload = b"amount,city\n10,a\nunknown,b\ninf,c\n,d\n20,e\n"
     response = test_client.post(
         "/api/datasets/upload",
-        files={
-            "file": (
-                "mixed.csv",
-                b"amount\n10\nunknown\n\n",
-                "text/csv",
-            )
-        },
+        files={"file": ("mixed.csv", payload, "text/csv")},
     )
     assert response.status_code == 201
     dataset_id = response.json()["id"]
+
     preview = test_client.post(
         f"/api/datasets/{dataset_id}/cleaning/preview",
         json={"fill_numeric_median": ["amount"]},
     )
+    assert preview.status_code == 200
+    body = preview.json()
+    operation = next(
+        item for item in body["preview"]["operations"]
+        if item["operation"] == "fill_numeric_median"
+    )
+    assert operation["imputation_value"] == "15"
+    assert operation["missing_cells_filled"] == 1
+    assert operation["invalid_cells_coerced_to_missing"] == 2
+    assert operation["affected_cells"] == 3
+    assert body["preview"]["changed_row_count"] == 3
+    assert list(version_dir.glob("*.csv")) == []
+
+    applied = test_client.post(
+        f"/api/datasets/{dataset_id}/cleaning/apply",
+        json={"fill_numeric_median": ["amount"]},
+    )
+    assert applied.status_code == 201
+    original_path = next(upload_dir.glob("*.csv"))
+    assert original_path.read_bytes() == payload
+    cleaned = pd.read_csv(next(version_dir.glob("*.csv")))
+    assert cleaned["amount"].tolist() == [10, 15, 15, 15, 20]
+    assert cleaned["amount"].map(pd.notna).all()
+
+
+def test_numeric_median_rejects_when_no_finite_values_remain(client):
+    test_client, _, version_dir = client
+    response = test_client.post(
+        "/api/datasets/upload",
+        files={"file": ("invalid.csv", b"amount\nunknown\ninf\n", "text/csv")},
+    )
+    assert response.status_code == 201
+    preview = test_client.post(
+        f"/api/datasets/{response.json()['id']}/cleaning/preview",
+        json={"fill_numeric_median": ["amount"]},
+    )
     assert preview.status_code == 422
-    assert "non-numeric" in preview.json()["detail"]
+    assert "no finite numeric values" in preview.json()["detail"]
     assert list(version_dir.glob("*.csv")) == []
 
 
