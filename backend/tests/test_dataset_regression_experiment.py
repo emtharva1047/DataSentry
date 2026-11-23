@@ -123,7 +123,7 @@ def test_invalid_value_regression_uses_explicit_production_median_cleaning_and_u
         corruption_rate=0.05, corruption_type="invalid_values",
     )
     assert report["configuration"]["corruption_type"] == "invalid_values"
-    assert report["schema_version"] == 3
+    assert report["schema_version"] == 4
     assert report["aggregates"]["clean"]["seed_count"] == 3
     assert report["aggregates"]["corrupted"]["seed_count"] == 3
     assert report["aggregates"]["cleaned_corrupted"]["seed_count"] == 3
@@ -156,3 +156,37 @@ def test_regression_experiment_rejects_unsupported_corruption_type():
             _frame(), target_column="target", seeds=(42, 123, 2026),
             corruption_type="categorical_inconsistency",
         )
+
+
+def test_numerical_anomaly_regression_uses_production_iqr_clipping_and_untouched_test():
+    frame = _frame()
+    original = frame.copy(deep=True)
+    report = run_regression_corruption_experiment(
+        frame, target_column="target", numeric_columns=["temperature", "humidity"],
+        categorical_columns=["season"], seeds=(42, 123, 2026), test_size=0.25,
+        corruption_rate=0.05, corruption_type="numerical_anomalies",
+    )
+    assert report["configuration"]["corruption_type"] == "numerical_anomalies"
+    assert report["schema_version"] == 4
+    assert all(report["aggregates"][name]["seed_count"] == 3 for name in ("clean", "corrupted", "cleaned_corrupted"))
+    assert report["paired_cleaned_minus_corrupted"]["seed_count"] == 3
+    test_hashes = set()
+    for run in report["per_seed"]:
+        corruption = run["corruption"]
+        assert corruption["injection_unit"] == "eligible_feature_cells"
+        assert corruption["injected_cells"] == corruption["injected_count"] > 0
+        assert corruption["injected_rows"] is None
+        assert run["corruption"]["cleaned_training_rows"] == run["split"]["train_rows"]
+        assert run["split"]["test_partition_untouched"] is True
+        test_hashes.add(run["split"]["clean_test_sha256"])
+        clip_operations = [
+            item for item in run["cleaning"]["operations"]
+            if item["operation"] == "clip_numeric_iqr"
+        ]
+        assert {item["columns"][0] for item in clip_operations} == {"temperature", "humidity"}
+        assert sum(item["affected_cells"] for item in clip_operations) >= corruption["injected_cells"]
+        assert all(item["review_required"] is True for item in clip_operations)
+        assert np.isfinite(run["conditions"]["corrupted"]["metrics"]["rmse"])
+        assert np.isfinite(run["conditions"]["cleaned_corrupted"]["metrics"]["mae"])
+    assert len(test_hashes) == 1
+    pd.testing.assert_frame_equal(frame, original)

@@ -76,6 +76,7 @@ def _validate_columns(frame: pd.DataFrame, request: dict[str, Any]) -> None:
         + request["fill_categorical_mode"]
         + request["trim_whitespace"]
         + request["lowercase_categories"]
+        + request.get("clip_numeric_iqr", [])
     )
     missing = sorted(set(selected) - set(map(str, frame.columns)))
     if missing:
@@ -230,6 +231,56 @@ def _transform(
             "tie_break": "pandas mode ordering; first mode selected",
         })
 
+    for column in request.get("clip_numeric_iqr", []):
+        original = result[column]
+        numeric = pd.to_numeric(original, errors="coerce")
+        numeric_values = numeric.to_numpy(dtype=float, na_value=np.nan)
+        observed = original.notna().to_numpy()
+        finite_mask = np.isfinite(numeric_values)
+        invalid_count = int((observed & ~finite_mask).sum())
+        if invalid_count:
+            raise DatasetCleaningRequestError(
+                f"Cannot apply IQR clipping to '{column}' while it contains non-numeric or non-finite values. "
+                "Select fill_numeric_median first if coercion and imputation are appropriate."
+            )
+        finite_values = numeric_values[finite_mask]
+        if finite_values.size < 4:
+            raise DatasetCleaningRequestError(
+                f"Cannot calculate IQR fences for '{column}' because at least four finite values are required."
+            )
+        q1, q3 = np.quantile(finite_values, [0.25, 0.75])
+        iqr = float(q3 - q1)
+        multiplier = 1.5
+        with np.errstate(over="ignore", invalid="ignore"):
+            lower_fence = float(q1 - multiplier * iqr)
+            upper_fence = float(q3 + multiplier * iqr)
+        if not np.isfinite(lower_fence) or not np.isfinite(upper_fence):
+            raise DatasetCleaningRequestError(
+                f"Cannot calculate finite IQR fences for '{column}'."
+            )
+        lower_mask = finite_mask & (numeric_values < lower_fence)
+        upper_mask = finite_mask & (numeric_values > upper_fence)
+        lower_count = int(lower_mask.sum())
+        upper_count = int(upper_mask.sum())
+        normalized = original.astype(object).copy()
+        for position in np.flatnonzero(lower_mask):
+            normalized.iloc[int(position)] = repr(lower_fence)
+        for position in np.flatnonzero(upper_mask):
+            normalized.iloc[int(position)] = repr(upper_fence)
+        result[column] = normalized
+        summary.append({
+            "operation": "clip_numeric_iqr",
+            "columns": [column],
+            "affected_cells": lower_count + upper_count,
+            "clipped_low_cells": lower_count,
+            "clipped_high_cells": upper_count,
+            "lower_fence": lower_fence,
+            "upper_fence": upper_fence,
+            "iqr_multiplier": multiplier,
+            "review_required": True,
+            "comparison": "Tukey 1.5xIQR fences fitted on the selected base version; values beyond either fence are clipped, not deleted.",
+        })
+
     if request["drop_exact_duplicates"]:
         duplicate_count = int(result.duplicated(keep="first").sum())
         result = result.drop_duplicates(keep="first")
@@ -258,6 +309,7 @@ def _request_payload(request: dict[str, Any]) -> dict[str, Any]:
         "fill_categorical_mode": list(request["fill_categorical_mode"]),
         "trim_whitespace": list(request["trim_whitespace"]),
         "lowercase_categories": list(request["lowercase_categories"]),
+        "clip_numeric_iqr": list(request.get("clip_numeric_iqr", [])),
     }
 
 
@@ -270,6 +322,7 @@ def get_cleaning_recommendations(
     categorical_mode: list[str] = []
     trim_columns: list[str] = []
     lowercase_columns: list[str] = []
+    iqr_clip_columns: list[tuple[str, int]] = []
 
     for column in frame.columns:
         series = frame[column]
@@ -286,6 +339,16 @@ def get_cleaning_recommendations(
             numeric_median.append(str(column))
         elif missing_count and not non_missing.empty:
             categorical_mode.append(str(column))
+
+        if numeric_like and finite_count >= 4 and finite_count == len(non_missing):
+            finite_values = parsed.to_numpy(dtype=float)
+            q1, q3 = np.quantile(finite_values, [0.25, 0.75])
+            iqr = float(q3 - q1)
+            lower_fence = float(q1 - 1.5 * iqr)
+            upper_fence = float(q3 + 1.5 * iqr)
+            outlier_count = int(((finite_values < lower_fence) | (finite_values > upper_fence)).sum())
+            if outlier_count:
+                iqr_clip_columns.append((str(column), outlier_count))
 
         if not non_missing.empty and bool(
             (non_missing != non_missing.str.strip()).any()
@@ -315,6 +378,18 @@ def get_cleaning_recommendations(
             "affected_count": int(frame[column].isna().sum()),
             "risk": "medium",
             "reason": "The column is numeric-like and has missing values; median imputation changes the empirical distribution.",
+        })
+    for column, count in iqr_clip_columns:
+        recommendations.append({
+            "operation": "clip_numeric_iqr",
+            "column": column,
+            "recommended": False,
+            "affected_count": count,
+            "risk": "high",
+            "reason": (
+                "Values fall outside Tukey 1.5xIQR fences. Clipping changes legitimate extremes too; "
+                "inspect domain context and preview before explicitly applying this operation."
+            ),
         })
     for column in categorical_mode:
         recommendations.append({
@@ -368,6 +443,7 @@ def get_cleaning_recommendations(
             "Recommendations are advisory and never execute automatically.",
             "Median and mode imputation can change distributions and must be justified for the dataset.",
             "Case normalization is not recommended by default because capitalization can carry meaning.",
+            "IQR clipping is a high-risk review-only operation; it can alter legitimate extreme observations and never deletes rows.",
             "A preview must be reviewed before an explicit apply request creates an immutable version.",
         ],
     }

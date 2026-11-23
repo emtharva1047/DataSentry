@@ -477,7 +477,8 @@ export type CleaningOperationName =
   | "fill_numeric_median"
   | "fill_categorical_mode"
   | "trim_whitespace"
-  | "lowercase_categories";
+  | "lowercase_categories"
+  | "clip_numeric_iqr";
 
 export type CleaningRecommendation = {
   operation: CleaningOperationName;
@@ -495,6 +496,7 @@ export type CleaningRequest = {
   fill_categorical_mode: string[];
   trim_whitespace: string[];
   lowercase_categories: string[];
+  clip_numeric_iqr: string[];
 };
 
 export type CleaningOperationSummary = {
@@ -505,6 +507,11 @@ export type CleaningOperationSummary = {
   imputation_value?: string;
   missing_cells_filled?: number;
   invalid_cells_coerced_to_missing?: number;
+  clipped_low_cells?: number;
+  clipped_high_cells?: number;
+  lower_fence?: number;
+  upper_fence?: number;
+  iqr_multiplier?: number;
   review_required?: boolean;
   comparison?: string;
 };

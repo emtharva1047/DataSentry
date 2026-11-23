@@ -9,7 +9,7 @@ function buildCsv(): string {
   const classes = ["alpha", "beta", "gamma"];
   for (let index = 0; index < 60; index += 1) {
     const age = index === 3 ? "" : String(21 + ((index * 7) % 35));
-    const income = String(30_000 + ((index * 137) % 40_000));
+    const income = index === 59 ? "1000000" : String(30_000 + ((index * 137) % 40_000));
     const city = index % 3 === 0 ? "North " : index % 3 === 1 ? "South" : "West";
     const segment = classes[index % classes.length];
     const score = String(((index * 19) % 37) + ((index * 7) % 13) * 0.17);
@@ -84,10 +84,14 @@ test("browser completes the upload-to-baseline workflow against FastAPI", async 
 
   await page.getByRole("button", { name: "Review cleaning for " + filename }).click();
   await expect(page.getByRole("heading", { name: "Cleaning recommendations & version history" })).toBeVisible();
+  const iqrCheckbox = page.getByRole("checkbox", { name: /Clip numeric values outside IQR fences/ });
+  await expect(iqrCheckbox).toBeVisible();
+  await iqrCheckbox.check();
   const previewButton = page.getByRole("button", { name: "Preview selected changes" });
   await expect(previewButton).toBeEnabled();
   await previewButton.click();
   await expect(page.getByRole("heading", { name: "Review the proposed result" })).toBeVisible();
+  await expect(page.getByText("0 low / 1 high clipped")).toBeVisible();
   await page.getByLabel(/I reviewed the proposed row and cell changes/).check();
 
   const applyResponsePromise = page.waitForResponse((response) =>
@@ -105,6 +109,7 @@ test("browser completes the upload-to-baseline workflow against FastAPI", async 
   expect(versions).toHaveLength(1);
   expect(versions[0].parent_version_id).toBeNull();
   expect(versions[0].rows_count).toBe(60);
+  expect(versions[0].operations.request.clip_numeric_iqr).toEqual(["income"]);
 
   const detailAfter = await request.get(apiBase + "/api/datasets/" + datasetId);
   expect((await detailAfter.json()).sha256_hash).toBe(originalMetadata.sha256_hash);

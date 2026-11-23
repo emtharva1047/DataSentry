@@ -543,3 +543,58 @@ The paired production-cleaned-minus-corrupted deltas for MAE, RMSE, and R² were
 This experiment shows parity between two explicit training-only preprocessing paths: the model pipeline's numeric coercion plus training-fitted median imputer, and the production fill_numeric_median cleaning operation. The cleaned condition did not improve predictive metrics over the corrupted condition because both paths imputed the same invalid cells from the same training-only finite-value median. Relative to the clean baseline, MAE increased while RMSE and R² improved slightly as random feature cells were removed from model input; the effects are mixed and specific to this split. No general claim of predictive benefit or harm is warranted.
 
 The injected token is an intentionally obvious non-numeric sentinel. This experiment does not test plausible-but-wrong finite numbers, unit errors, locale-specific parsing, or semantic range violations. It uses one chronological 75/25 holdout and a fixed Ridge alpha 1.0, not rolling-origin cross-validation. The three seeds vary corruption positions, not the temporal split. The results should not be generalized beyond this controlled reference.
+
+
+## 23 November 2026 — Numerical-anomaly downstream regression (measured)
+
+### Protocol and provenance
+
+The UCI Bike Sharing hourly reference (UCI dataset 275; 17,379 rows) was split chronologically into 13,034 training rows and 4,345 future test rows. Only the five declared numeric training predictors were eligible for finite high-anomaly injection; the target, categorical predictors, and future test partition were not corrupted. The fixed model was Ridge regression (alpha 1.0), with training-only preprocessing. Rates were 1%, 5%, and 10%; seeds were 42, 123, and 2026.
+
+The full downstream workflow now covers four corruption families—missingness, exact duplicate rows, invalid numeric tokens, and numerical anomalies—at three rates and three seeds: 36 rate/seed trials and 108 model fits. This section reports the numerical-anomaly subset (9 trials, 27 model fits). The production cleaned condition uses `clip_numeric_iqr`: Tukey 1.5×IQR fences fitted on the corrupted training partition only, clipping both tails without deleting rows.
+
+### Measured regression metrics
+
+Values are mean ± sample standard deviation (ddof=1) across the three corruption seeds. The clean baseline is identical across rates because the chronological split is fixed.
+
+| Rate | Condition | MAE ↓ | RMSE ↓ | R² ↑ |
+|---:|---|---:|---:|---:|
+| — | Clean | 100.722797 ± 0 | 135.412419 ± 0 | 0.621144 ± 0 |
+| 1% | Corrupted | 105.259599 ± 0.090470 | 138.013730 ± 0.019881 | 0.606449 ± 0.000114 |
+| 1% | IQR clipped | 101.436026 ± 0.122883 | 135.638110 ± 0.001888 | 0.619880 ± 0.000011 |
+| 5% | Corrupted | 105.262880 ± 0.062322 | 138.073959 ± 0.011749 | 0.606105 ± 0.000067 |
+| 5% | IQR clipped | 102.841495 ± 0.192790 | 136.514814 ± 0.107695 | 0.614951 ± 0.000608 |
+| 10% | Corrupted | 105.318074 ± 0.060401 | 138.076463 ± 0.005034 | 0.606091 ± 0.000029 |
+| 10% | IQR clipped | 103.730188 ± 0.097265 | 137.028821 ± 0.097784 | 0.612046 ± 0.000554 |
+
+### Paired IQR-clipped minus corrupted differences
+
+Negative MAE/RMSE and positive R² indicate improvement after clipping.
+
+| Rate | ΔMAE | ΔRMSE | ΔR² |
+|---:|---:|---:|---:|
+| 1% | -3.823573 ± 0.041716 | -2.375620 ± 0.021416 | +0.013432 ± 0.000123 |
+| 5% | -2.421385 ± 0.149402 | -1.559145 ± 0.095975 | +0.008845 ± 0.000540 |
+| 10% | -1.587886 ± 0.137907 | -1.047642 ± 0.092956 | +0.005955 ± 0.000526 |
+
+### Ground truth, cleaning evidence, and test integrity
+
+| Rate | Injected cells | IQR-clipped cells per seed |
+|---:|---:|---:|
+| 1% | 652 | 739, 736, 739 |
+| 5% | 3,259 | 3,342, 3,339, 3,344 |
+| 10% | 6,517 | 6,565, 6,565, 6,566 |
+
+The IQR operation clipped 48–87 additional cells per seed beyond the injected anomalies. These are other training observations outside the fitted IQR fences; they are not ground-truth injected defects and may be legitimate extremes. This is why the operation is high-risk, never auto-selected, and requires preview plus explicit apply. Training row count remained 13,034 in every condition.
+
+The future test partition retained SHA-256 `2f9613a31116dbdb6e0e272c123778ed3a45e62783393ead8df8c14cb7aef309` across all runs. Source provenance: UCI archive SHA-256 `b70182d0d0508e9abbb79306ce5c0cec34869000f8220175ac83d11dbe845401`; `hour.csv` SHA-256 `e03de4ee4ef4dc376ac6e04bf829673c6269e8eba5c60fa121640fa2f829504f`; analysis-frame SHA-256 `8ff14f833673fbad9c35ec3267c5c23335f98ba2b586e63bba67f98a755ee804`. Software: Python 3.12.16, pandas 2.3.3, NumPy 2.5.5, scikit-learn 1.9.1.
+
+### Interpretation and limitations
+
+IQR clipping improved all three reported metrics over the corrupted condition at each tested rate, but the clipped model did not recover the clean baseline. The benefit diminished as corruption rate increased. The operation also clipped pre-existing IQR outliers beyond the injected cells, so some changed observations may be valid. This experiment does not establish that IQR clipping is appropriate for arbitrary domains or that all statistical outliers are errors.
+
+The experiment uses one chronological 75/25 holdout and fixed Ridge alpha 1.0, not rolling-origin validation or model tuning. Seeds vary corruption locations, not the temporal split. Results are specific to this controlled synthetic high-anomaly mechanism and the selected UCI reference.
+
+### Artifact and reproducibility
+
+Workflow: [Bike Sharing Downstream Regression Research](https://github.com/emtharva1047/DataSentry/actions/runs/45098990303). The JSON artifact contains per-seed metrics, paired differences, exact cell labels, cleaning summaries, runtime, and provenance. Artifact ZIP SHA-256: `828729300f41f23dafd3619ed0ed9e0a7f0f36484e171e77ba842c178287ffd0`; JSON SHA-256: `adca2809d3e9c392ef299f94a11a53f342cfacd3ebe7ebf78b9550b958d8683d`. The ZIP artifact is retained by GitHub Actions until 23 December 2026.

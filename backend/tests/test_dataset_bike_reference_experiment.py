@@ -103,3 +103,15 @@ def test_bike_regression_runs_three_seeds_with_untouched_future_test(monkeypatch
         ) == run["corruption"]["injected_cells"]
         for run in invalid_experiment["per_seed"]
     )
+    anomaly_experiment = report["downstream_regression"]["numerical_anomaly_experiments"][0]
+    assert anomaly_experiment["configuration"]["corruption_type"] == "numerical_anomalies"
+    assert all(
+        run["corruption"]["injected_cells"] > 0
+        and run["split"]["test_partition_untouched"]
+        and sum(
+            operation["affected_cells"]
+            for operation in run["cleaning"]["operations"]
+            if operation["operation"] == "clip_numeric_iqr"
+        ) >= run["corruption"]["injected_cells"]
+        for run in anomaly_experiment["per_seed"]
+    )

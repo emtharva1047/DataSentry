@@ -167,7 +167,7 @@ def build_bike_sharing_reference() -> tuple[pd.DataFrame, pd.DataFrame, dict[str
 def run_bike_sharing_regression_experiment(
     *, rates: Sequence[float] = (0.01, 0.05, 0.10),
     seeds: Sequence[int] = DEFAULT_REGRESSION_SEEDS, test_size: float = 0.25, alpha: float = 1.0,
-    corruption_types: Sequence[str] = ("missingness", "duplicates", "invalid_values"),
+    corruption_types: Sequence[str] = ("missingness", "duplicates", "invalid_values", "numerical_anomalies"),
 ) -> dict[str, Any]:
     """Run multi-rate, multi-seed downstream regression for supported training defects."""
     features, full_frame, metadata = build_bike_sharing_reference()
@@ -179,7 +179,7 @@ def run_bike_sharing_regression_experiment(
     if isinstance(corruption_types, (str, bytes)):
         raise ValueError("corruption_types must be a sequence of supported defect names")
     normalized_types = tuple(corruption_types)
-    supported_types = ("missingness", "duplicates", "invalid_values")
+    supported_types = ("missingness", "duplicates", "invalid_values", "numerical_anomalies")
     if (
         not normalized_types
         or len(set(normalized_types)) != len(normalized_types)
@@ -208,12 +208,14 @@ def run_bike_sharing_regression_experiment(
             "experiments": experiments_by_type.get("missingness", []),
             "duplicate_experiments": experiments_by_type.get("duplicates", []),
             "invalid_value_experiments": experiments_by_type.get("invalid_values", []),
+            "numerical_anomaly_experiments": experiments_by_type.get("numerical_anomalies", []),
         },
         "scope_limitations": [
             "One UCI hourly reference and one chronological 75/25 holdout.",
             "Only training data is corrupted; future test rows and targets remain untouched.",
             "Missingness changes training features only; duplicate corruption appends complete feature/target training rows.",
-            "Production cleaning uses median/mode imputation for missingness, exact duplicate removal for duplicate corruption, and explicit invalid/non-finite-to-missing coercion plus median imputation for invalid_values.",
+            "Production cleaning uses median/mode imputation for missingness, exact duplicate removal for duplicate corruption, explicit invalid/non-finite-to-missing coercion plus median imputation for invalid_values, and review-only Tukey 1.5xIQR clipping for numerical_anomalies.",
+            "IQR clipping estimates fences from the corrupted training partition only and may clip legitimate extreme observations; it is not a universal anomaly correction.",
             "Ridge is a fixed-alpha baseline; no rolling-origin cross-validation or tuning is performed.",
             "casual and registered are excluded as direct target components; day_index is derived and documented.",
         ],
