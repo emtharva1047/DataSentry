@@ -403,7 +403,7 @@ def test_version_quality_comparison_includes_aligned_numeric_profiles_and_correl
 def test_iqr_clipping_is_review_only_and_creates_an_immutable_version(client):
     test_client, upload_dir, version_dir = client
     values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 1000]
-    payload = ("amount,category\\n" + "".join(f"{value},a\\n" for value in values)).encode("utf-8")
+    payload = ("amount,category\n" + "".join(f"{value},a\n" for value in values)).encode("utf-8")
     uploaded = test_client.post(
         "/api/datasets/upload",
         files={"file": ("outliers.csv", payload, "text/csv")},
@@ -455,7 +455,7 @@ def test_iqr_clipping_requires_finite_numeric_values_or_explicit_median_coercion
     test_client, _, version_dir = client
     uploaded = test_client.post(
         "/api/datasets/upload",
-        files={"file": ("mixed.csv", b"amount\\n1\\n2\\n3\\n4\\nunknown\\n1000\\n", "text/csv")},
+        files={"file": ("mixed.csv", b"amount\n1\n2\n3\n4\nunknown\n1000\n", "text/csv")},
     )
     assert uploaded.status_code == 201
     dataset_id = uploaded.json()["id"]
