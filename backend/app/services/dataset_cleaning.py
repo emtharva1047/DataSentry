@@ -264,9 +264,9 @@ def _transform(
         upper_count = int(upper_mask.sum())
         normalized = original.astype(object).copy()
         for position in np.flatnonzero(lower_mask):
-            normalized.iloc[int(position)] = format(lower_fence, ".15g")
+            normalized.iloc[int(position)] = repr(lower_fence)
         for position in np.flatnonzero(upper_mask):
-            normalized.iloc[int(position)] = format(upper_fence, ".15g")
+            normalized.iloc[int(position)] = repr(upper_fence)
         result[column] = normalized
         summary.append({
             "operation": "clip_numeric_iqr",
