@@ -123,7 +123,7 @@ def test_invalid_value_regression_uses_explicit_production_median_cleaning_and_u
         corruption_rate=0.05, corruption_type="invalid_values",
     )
     assert report["configuration"]["corruption_type"] == "invalid_values"
-    assert report["schema_version"] == 3
+    assert report["schema_version"] == 4
     assert report["aggregates"]["clean"]["seed_count"] == 3
     assert report["aggregates"]["corrupted"]["seed_count"] == 3
     assert report["aggregates"]["cleaned_corrupted"]["seed_count"] == 3
