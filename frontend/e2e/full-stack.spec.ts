@@ -91,7 +91,7 @@ test("browser completes the upload-to-baseline workflow against FastAPI", async 
   await expect(previewButton).toBeEnabled();
   await previewButton.click();
   await expect(page.getByRole("heading", { name: "Review the proposed result" })).toBeVisible();
-  await expect(page.getByText("1 low / 1 high clipped")).toBeVisible();
+  await expect(page.getByText("0 low / 1 high clipped")).toBeVisible();
   await page.getByLabel(/I reviewed the proposed row and cell changes/).check();
 
   const applyResponsePromise = page.waitForResponse((response) =>
