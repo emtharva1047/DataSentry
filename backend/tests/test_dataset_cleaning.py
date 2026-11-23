@@ -398,3 +398,80 @@ def test_version_quality_comparison_includes_aligned_numeric_profiles_and_correl
     assert profile["correlations"]["comparable_pair_count"] >= 1
     assert original_path.read_bytes() == original_bytes == payload
     assert version_path.read_bytes() == version_bytes
+
+
+def test_iqr_clipping_is_review_only_and_creates_an_immutable_version(client):
+    test_client, upload_dir, version_dir = client
+    values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 1000]
+    payload = ("amount,category\\n" + "".join(f"{value},a\\n" for value in values)).encode("utf-8")
+    uploaded = test_client.post(
+        "/api/datasets/upload",
+        files={"file": ("outliers.csv", payload, "text/csv")},
+    )
+    assert uploaded.status_code == 201
+    dataset_id = uploaded.json()["id"]
+
+    recommendations = test_client.get(
+        f"/api/datasets/{dataset_id}/cleaning/recommendations"
+    )
+    assert recommendations.status_code == 200
+    recommendation = next(
+        item for item in recommendations.json()["recommendations"]
+        if item["operation"] == "clip_numeric_iqr" and item["column"] == "amount"
+    )
+    assert recommendation["recommended"] is False
+    assert recommendation["risk"] == "high"
+    assert recommendation["affected_count"] == 1
+
+    request = {"clip_numeric_iqr": ["amount"]}
+    preview = test_client.post(
+        f"/api/datasets/{dataset_id}/cleaning/preview", json=request
+    )
+    assert preview.status_code == 200
+    operation = next(
+        item for item in preview.json()["preview"]["operations"]
+        if item["operation"] == "clip_numeric_iqr"
+    )
+    assert operation["affected_cells"] == 1
+    assert operation["clipped_high_cells"] == 1
+    assert operation["clipped_low_cells"] == 0
+    assert operation["iqr_multiplier"] == 1.5
+    assert operation["upper_fence"] == pytest.approx(14.5)
+    assert preview.json()["preview"]["changed_row_count"] == 1
+    assert list(version_dir.glob("*.csv")) == []
+
+    applied = test_client.post(
+        f"/api/datasets/{dataset_id}/cleaning/apply", json=request
+    )
+    assert applied.status_code == 201
+    assert applied.json()["source_preserved"] is True
+    assert next(upload_dir.glob("*.csv")).read_bytes() == payload
+    cleaned = pd.read_csv(next(version_dir.glob("*.csv")))
+    assert cleaned["amount"].max() == pytest.approx(14.5)
+    assert len(cleaned) == len(values)
+
+
+def test_iqr_clipping_requires_finite_numeric_values_or_explicit_median_coercion(client):
+    test_client, _, version_dir = client
+    uploaded = test_client.post(
+        "/api/datasets/upload",
+        files={"file": ("mixed.csv", b"amount\\n1\\n2\\n3\\n4\\nunknown\\n1000\\n", "text/csv")},
+    )
+    assert uploaded.status_code == 201
+    dataset_id = uploaded.json()["id"]
+    rejected = test_client.post(
+        f"/api/datasets/{dataset_id}/cleaning/preview",
+        json={"clip_numeric_iqr": ["amount"]},
+    )
+    assert rejected.status_code == 422
+    assert "fill_numeric_median first" in rejected.json()["detail"]
+    combined = test_client.post(
+        f"/api/datasets/{dataset_id}/cleaning/preview",
+        json={"fill_numeric_median": ["amount"], "clip_numeric_iqr": ["amount"]},
+    )
+    assert combined.status_code == 200
+    assert any(
+        item["operation"] == "clip_numeric_iqr"
+        for item in combined.json()["preview"]["operations"]
+    )
+    assert list(version_dir.glob("*.csv")) == []

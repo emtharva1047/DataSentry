@@ -309,3 +309,12 @@ This is a controlled synthetic parseability experiment. The invalid token is int
 
 
 For the Bike Sharing invalid-value regression experiment, the adapter passes the declared numeric feature list to the shared corruption generator. This prevents numeric-looking category-code strings from being selected as continuous numeric corruption targets.
+
+
+## Numerical-anomaly downstream regression protocol (23 November 2026)
+
+The Bike Sharing regression runner now includes `numerical_anomalies` as a training-only corruption condition. The existing seeded generator replaces selected finite numeric training cells with finite values above the original column maximum and records exact cell-level ground truth. The chronological future test partition and regression targets are not corrupted.
+
+The cleaned condition uses the production `clip_numeric_iqr` operation: for each explicitly selected numeric feature, compute Q1/Q3 and Tukey fences (Q1 − 1.5×IQR, Q3 + 1.5×IQR) from the corrupted training partition only, then clip values outside either fence. No rows are deleted. The operation reports low/high clipped-cell counts and fitted bounds. It is high-risk and manual-review-only because legitimate extreme observations can be meaningful and the operation may clip pre-existing outliers as well as injected anomalies.
+
+Compare clean, corrupted, and explicitly clipped training conditions using the same chronological future holdout and fixed Ridge alpha. Record per-seed MAE/RMSE/R², paired cleaned-minus-corrupted deltas, exact injected-cell counts, cleaning counts, test fingerprint, software versions, runtime, and artifact hashes. This single temporal holdout is not rolling-origin validation; results are dataset- and corruption-specific.

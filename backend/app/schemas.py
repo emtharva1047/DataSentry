@@ -108,6 +108,7 @@ class CleaningRequest(BaseModel):
     fill_categorical_mode: list[str] = Field(default_factory=list, max_length=200)
     trim_whitespace: list[str] = Field(default_factory=list, max_length=200)
     lowercase_categories: list[str] = Field(default_factory=list, max_length=200)
+    clip_numeric_iqr: list[str] = Field(default_factory=list, max_length=200)
 
     @model_validator(mode="after")
     def validate_operations(self) -> "CleaningRequest":
@@ -116,6 +117,7 @@ class CleaningRequest(BaseModel):
             self.fill_categorical_mode,
             self.trim_whitespace,
             self.lowercase_categories,
+            self.clip_numeric_iqr,
         )
         for columns in operations:
             if len(columns) != len(set(columns)):

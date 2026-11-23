@@ -32,6 +32,7 @@ function operationLabel(operation: CleaningOperationName): string {
     fill_categorical_mode: "Fill missing categories with mode",
     trim_whitespace: "Trim leading and trailing whitespace",
     lowercase_categories: "Normalize category text to lowercase",
+    clip_numeric_iqr: "Clip numeric values outside IQR fences",
   };
   return labels[operation];
 }
@@ -160,6 +161,9 @@ export default function CleaningPanel({ dataset }: { dataset: Dataset | null }) 
       .map((item) => item.column as string),
     lowercase_categories: selectedRecommendations
       .filter((item) => item.operation === "lowercase_categories" && item.column)
+      .map((item) => item.column as string),
+    clip_numeric_iqr: selectedRecommendations
+      .filter((item) => item.operation === "clip_numeric_iqr" && item.column)
       .map((item) => item.column as string),
   }), [baseVersionId, selectedRecommendations]);
 
@@ -645,6 +649,11 @@ export default function CleaningPanel({ dataset }: { dataset: Dataset | null }) 
                         {operation.invalid_cells_coerced_to_missing !== undefined
                           ? " · " + number(operation.invalid_cells_coerced_to_missing) + " invalid → missing · " +
                             number(operation.missing_cells_filled ?? 0) + " missing filled"
+                          : ""}
+                        {operation.iqr_multiplier !== undefined
+                          ? " · " + number(operation.clipped_low_cells ?? 0) + " low / " +
+                            number(operation.clipped_high_cells ?? 0) + " high clipped · fences " +
+                            operation.lower_fence + " to " + operation.upper_fence
                           : ""}
                       </span>
                     </li>

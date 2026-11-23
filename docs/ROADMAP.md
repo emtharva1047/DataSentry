@@ -169,3 +169,12 @@ The 22 November invalid-value regression adapter now passes declared numeric fea
 ## 22 November 2026 — Invalid-value downstream regression (measured)
 
 The UCI Bike Sharing workflow completed 27 experiments (three defect types × three rates × three seeds; 81 Ridge fits). Invalid-value injection was limited to the five explicitly declared numeric predictors, avoiding numeric-looking category-code strings. The production fill_numeric_median operation reported exactly the injected invalid-cell count, zero pre-existing missing cells, and no row loss. The cleaned-corrupted condition reproduced the leakage-safe model pipeline's native median-imputation metrics exactly. The chronological future test partition retained the same SHA-256 across runs. See docs/RESEARCH_RESULTS.md for measured metrics and provenance. Numerical-anomaly downstream regression and final delivery hardening remain.
+
+
+## 23 November 2026 — Numerical-anomaly cleaning and downstream regression (implementation)
+
+- Added a production `clip_numeric_iqr` operation using Tukey 1.5×IQR fences fitted on the selected base dataset version. It clips both tails, never removes rows, and reports fences plus low/high clipped-cell counts.
+- IQR clipping is surfaced as a high-risk, manual-review-only recommendation because legitimate extreme observations can be meaningful. Preview and explicit immutable apply remain required.
+- Added API schema validation, TypeScript request/response types, dashboard operation selection, and preview impact evidence.
+- Extended the Bike Sharing regression runner to inject finite numerical extremes into training features only and compare clean, corrupted, and production-IQR-clipped conditions across three seeds and three rates. The chronological future test partition remains untouched.
+- Research measurements remain pending until the workflow completes and its JSON artifact is inspected.

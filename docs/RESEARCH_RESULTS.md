@@ -543,3 +543,10 @@ The paired production-cleaned-minus-corrupted deltas for MAE, RMSE, and R² were
 This experiment shows parity between two explicit training-only preprocessing paths: the model pipeline's numeric coercion plus training-fitted median imputer, and the production fill_numeric_median cleaning operation. The cleaned condition did not improve predictive metrics over the corrupted condition because both paths imputed the same invalid cells from the same training-only finite-value median. Relative to the clean baseline, MAE increased while RMSE and R² improved slightly as random feature cells were removed from model input; the effects are mixed and specific to this split. No general claim of predictive benefit or harm is warranted.
 
 The injected token is an intentionally obvious non-numeric sentinel. This experiment does not test plausible-but-wrong finite numbers, unit errors, locale-specific parsing, or semantic range violations. It uses one chronological 75/25 holdout and a fixed Ridge alpha 1.0, not rolling-origin cross-validation. The three seeds vary corruption positions, not the temporal split. The results should not be generalized beyond this controlled reference.
+
+
+## 23 November 2026 — Numerical-anomaly downstream regression (implementation)
+
+The production cleaning API and dashboard now expose `clip_numeric_iqr`, a high-risk manual-review operation using Tukey 1.5×IQR fences. It clips numeric values outside the fitted fences, retains all rows, and reports the bounds and separate low/high clipping counts. The operation fits bounds on the selected base version; in the downstream experiment that base is the corrupted training partition only.
+
+The Bike Sharing regression workflow now includes training-only `numerical_anomalies` at rates 1%, 5%, and 10% across seeds 42, 123, and 2026. It compares clean, corrupted, and production-clipped training against the same untouched chronological future test partition. Exact injected-cell labels and per-seed cleaning evidence are retained. **Measured results are pending** until the workflow artifact is downloaded and inspected; no performance claim is made by this implementation note.

@@ -15,7 +15,7 @@ from .dataset_research import aggregate_seed_metrics, inject_synthetic_corruptio
 DEFAULT_REGRESSION_SEEDS = (42, 123, 2026)
 MINIMUM_REGRESSION_ROWS = 30
 MAX_REGRESSION_SEEDS = 10
-SUPPORTED_REGRESSION_CORRUPTIONS = ("missingness", "duplicates", "invalid_values")
+SUPPORTED_REGRESSION_CORRUPTIONS = ("missingness", "duplicates", "invalid_values", "numerical_anomalies")
 
 
 def _frame_sha256(frame: pd.DataFrame) -> str:
@@ -182,15 +182,16 @@ def run_regression_corruption_experiment(
                 + str(defect.get("skipped_reason"))
             )
 
-        if corruption_type in {"missingness", "invalid_values"}:
+        if corruption_type in {"missingness", "invalid_values", "numerical_anomalies"}:
             corrupted_x = corruption.frame.copy(deep=True)
             corrupted_y = train_y.copy(deep=True)
             cleaned_x, cleaning = dataset_cleaning._transform(corrupted_x, {
                 "drop_exact_duplicates": False,
-                "fill_numeric_median": numeric,
+                "fill_numeric_median": numeric if corruption_type in {"missingness", "invalid_values"} else [],
                 "fill_categorical_mode": categorical if corruption_type == "missingness" else [],
                 "trim_whitespace": [],
                 "lowercase_categories": [],
+                "clip_numeric_iqr": numeric if corruption_type == "numerical_anomalies" else [],
             })
             cleaned_y = train_y.copy(deep=True)
             injection_unit = "eligible_feature_cells"
@@ -211,6 +212,20 @@ def run_regression_corruption_experiment(
                         raise RuntimeError(
                             f"production median cleaning left invalid numeric values in '{column}'"
                         )
+            if corruption_type == "numerical_anomalies":
+                clip_operations = {
+                    item["columns"][0]: item
+                    for item in cleaning["preview"]["operations"]
+                    if item["operation"] == "clip_numeric_iqr"
+                }
+                for record in injection_records:
+                    column = str(record["column"])
+                    operation = clip_operations.get(column)
+                    if operation is None:
+                        raise RuntimeError(f"production IQR cleaning omitted injected column '{column}'")
+                    cleaned_value = float(cleaned_x.iloc[int(record["row_index"])][column])
+                    if cleaned_value > float(operation["upper_fence"]) or cleaned_value < float(operation["lower_fence"]):
+                        raise RuntimeError(f"production IQR cleaning left an injected anomaly in '{column}'")
         else:
             corrupted_full = corruption.frame.copy(deep=True)
             corrupted_y = pd.to_numeric(
@@ -295,7 +310,7 @@ def run_regression_corruption_experiment(
                 "rate": float(corruption_rate),
                 "injection_unit": injection_unit,
                 "injected_count": injected_count,
-                "injected_cells": injected_count if corruption_type in {"missingness", "invalid_values"} else None,
+                "injected_cells": injected_count if corruption_type in {"missingness", "invalid_values", "numerical_anomalies"} else None,
                 "injected_rows": injected_count if corruption_type == "duplicates" else None,
                 "corrupted_training_rows": len(corrupted_x),
                 "cleaned_training_rows": len(cleaned_x),
@@ -333,7 +348,7 @@ def run_regression_corruption_experiment(
     ])
     reference = pd.concat([features, target.rename(target_column)], axis=1)
     return {
-        "schema_version": 3,
+        "schema_version": 4,
         "task_type": "regression",
         "model": "ridge_regression",
         "target_column": target_column,
@@ -358,6 +373,7 @@ def run_regression_corruption_experiment(
             "Duplicate corruption appends exact feature/target pairs and production cleaning removes exact duplicate rows.",
             "Median/mode imputation is one explicit missingness policy, not a universal correction.",
             "For invalid_values, the selected numeric-median cleaning operation explicitly coerces non-numeric and non-finite cells to missing before imputation; cells are counted separately in cleaning evidence.",
+            "For numerical_anomalies, the production clip_numeric_iqr operation fits Tukey 1.5xIQR fences on the corrupted training partition only and clips both tails; it can also clip legitimate training extremes.",
             "Ridge uses a fixed alpha and one chronological holdout; no rolling-origin validation is performed.",
         ],
     }
