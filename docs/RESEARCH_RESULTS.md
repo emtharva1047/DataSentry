@@ -597,4 +597,4 @@ The experiment uses one chronological 75/25 holdout and fixed Ridge alpha 1.0, n
 
 ### Artifact and reproducibility
 
-Workflow: [Bike Sharing Downstream Regression Research](https://github.com/emtharva1047/DataSentry/actions/runs/45098530703). The JSON artifact contains per-seed metrics, paired differences, exact cell labels, cleaning summaries, runtime, and provenance. Artifact ZIP SHA-256: `0828fc19a3e9bb6d30e204a54d3e70646abf853c00ddf78651863093c0b34727`; JSON SHA-256: `b2a0c7013b3a3d39d5fd0f8f0602b3ac472f80ecbb17ef9147e63f25fbc46cd2`. The ZIP artifact is retained by GitHub Actions until 23 December 2026.
+Workflow: [Bike Sharing Downstream Regression Research](https://github.com/emtharva1047/DataSentry/actions/runs/45098990303). The JSON artifact contains per-seed metrics, paired differences, exact cell labels, cleaning summaries, runtime, and provenance. Artifact ZIP SHA-256: `828729300f41f23dafd3619ed0ed9e0a7f0f36484e171e77ba842c178287ffd0`; JSON SHA-256: `adca2809d3e9c392ef299f94a11a53f342cfacd3ebe7ebf78b9550b958d8683d`. The ZIP artifact is retained by GitHub Actions until 23 December 2026.
