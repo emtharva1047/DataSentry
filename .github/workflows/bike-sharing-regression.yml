@@ -7,11 +7,14 @@ on:
       - "backend/app/services/dataset_regression_experiment.py"
       - "backend/app/services/dataset_research.py"
       - "backend/app/services/dataset_bike_reference_experiment.py"
+      - "backend/app/services/dataset_bike_categories.py"
+      - "backend/app/services/dataset_bike_detector_experiment.py"
       - "backend/app/services/dataset_cleaning.py"
       - "backend/scripts/run_bike_sharing_regression_experiment.py"
       - "backend/tests/test_dataset_regression_experiment.py"
       - "backend/tests/test_dataset_research.py"
       - "backend/tests/test_dataset_bike_reference_experiment.py"
+      - "backend/tests/test_dataset_bike_detector_experiment.py"
       - "backend/tests/test_dataset_cleaning.py"
       - ".github/workflows/bike-sharing-regression.yml"
   pull_request:
@@ -19,11 +22,14 @@ on:
       - "backend/app/services/dataset_regression_experiment.py"
       - "backend/app/services/dataset_research.py"
       - "backend/app/services/dataset_bike_reference_experiment.py"
+      - "backend/app/services/dataset_bike_categories.py"
+      - "backend/app/services/dataset_bike_detector_experiment.py"
       - "backend/app/services/dataset_cleaning.py"
       - "backend/scripts/run_bike_sharing_regression_experiment.py"
       - "backend/tests/test_dataset_regression_experiment.py"
       - "backend/tests/test_dataset_research.py"
       - "backend/tests/test_dataset_bike_reference_experiment.py"
+      - "backend/tests/test_dataset_bike_detector_experiment.py"
       - "backend/tests/test_dataset_cleaning.py"
       - ".github/workflows/bike-sharing-regression.yml"
   workflow_dispatch:
@@ -33,7 +39,7 @@ permissions:
 
 jobs:
   bike-sharing-regression:
-    name: UCI Bike Sharing clean-test missingness, duplicate, invalid-value, and numerical-anomaly regression experiments
+    name: UCI Bike Sharing clean-test downstream regression across five defect families
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -53,7 +59,8 @@ jobs:
         run: >-
           python -m scripts.run_bike_sharing_regression_experiment
           --rates 0.01,0.05,0.10
-          --corruption-types missingness,duplicates,invalid_values,numerical_anomalies
+          --corruption-types missingness,duplicates,invalid_values,numerical_anomalies,categorical_inconsistency
+          --categorical-mode case_only
           --seeds 42,123,2026
           --test-size 0.25
           --alpha 1.0

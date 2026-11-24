@@ -1,4 +1,4 @@
-"""Run UCI Bike Sharing training-only missingness, duplicate, invalid-value, and anomaly experiments."""
+"""Run UCI Bike Sharing training-only downstream regression corruption experiments."""
 from __future__ import annotations
 import argparse
 import json
@@ -22,7 +22,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run DataSentry's UCI Bike Sharing downstream regression experiments.")
     parser.add_argument("--rates", default="0.01,0.05,0.10", help="Cell-level feature or duplicate-row corruption rates for each selected defect type.")
     parser.add_argument("--seeds", default=",".join(str(x) for x in DEFAULT_REGRESSION_SEEDS))
-    parser.add_argument("--corruption-types", default="missingness,duplicates,invalid_values,numerical_anomalies", help="Distinct training-only corruption types: missingness,duplicates,invalid_values,numerical_anomalies.")
+    parser.add_argument("--corruption-types", default="missingness,duplicates,invalid_values,numerical_anomalies,categorical_inconsistency", help="Distinct training-only corruption types: missingness,duplicates,invalid_values,numerical_anomalies,categorical_inconsistency.")
+    parser.add_argument("--categorical-mode", choices=("combined", "whitespace_only", "case_only"), default="case_only", help="Categorical corruption subtype; case_only isolates letter-case fragmentation.")
     parser.add_argument("--test-size", type=float, default=0.25)
     parser.add_argument("--alpha", type=float, default=1.0)
     parser.add_argument("--output", type=Path, default=Path("research-results/uci-bike-sharing-regression.json"))
@@ -31,6 +32,7 @@ def main() -> int:
         rates=_csv_values(args.rates, float), seeds=_csv_values(args.seeds, int),
         test_size=args.test_size, alpha=args.alpha,
         corruption_types=_csv_values(args.corruption_types, str),
+        categorical_mode=args.categorical_mode,
     )
     destination = args.output.expanduser().resolve()
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -59,6 +61,7 @@ def main() -> int:
         "duplicate_experiments": summarize(downstream["duplicate_experiments"]),
         "invalid_value_experiments": summarize(downstream["invalid_value_experiments"]),
         "numerical_anomaly_experiments": summarize(downstream["numerical_anomaly_experiments"]),
+        "categorical_experiments": summarize(downstream["categorical_experiments"]),
     }, indent=2, ensure_ascii=False, allow_nan=False))
     return 0
 

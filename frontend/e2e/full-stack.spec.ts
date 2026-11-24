@@ -84,6 +84,7 @@ test("browser completes the upload-to-baseline workflow against FastAPI", async 
 
   await page.getByRole("button", { name: "Review cleaning for " + filename }).click();
   await expect(page.getByRole("heading", { name: "Cleaning recommendations & version history" })).toBeVisible();
+  await expect(page.getByRole("note").getByText(/Lowercase normalization is high-risk/)).toBeVisible();
   const iqrCheckbox = page.getByRole("checkbox", { name: /Clip numeric values outside IQR fences/ });
   await expect(iqrCheckbox).toBeVisible();
   await iqrCheckbox.check();

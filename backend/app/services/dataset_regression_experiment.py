@@ -10,12 +10,19 @@ from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.pipeline import Pipeline
 from . import dataset_cleaning, dataset_modeling
-from .dataset_research import aggregate_seed_metrics, inject_synthetic_corruption
+from .dataset_research import (
+    CATEGORICAL_CORRUPTION_MODES,
+    aggregate_seed_metrics,
+    inject_synthetic_corruption,
+)
 
 DEFAULT_REGRESSION_SEEDS = (42, 123, 2026)
 MINIMUM_REGRESSION_ROWS = 30
 MAX_REGRESSION_SEEDS = 10
-SUPPORTED_REGRESSION_CORRUPTIONS = ("missingness", "duplicates", "invalid_values", "numerical_anomalies")
+SUPPORTED_REGRESSION_CORRUPTIONS = (
+    "missingness", "duplicates", "invalid_values", "numerical_anomalies",
+    "categorical_inconsistency",
+)
 
 
 def _frame_sha256(frame: pd.DataFrame) -> str:
@@ -123,6 +130,7 @@ def run_regression_corruption_experiment(
     seeds: Sequence[int] = DEFAULT_REGRESSION_SEEDS,
     test_size: float = 0.25, corruption_rate: float = 0.05, alpha: float = 1.0,
     corruption_type: str = "missingness",
+    categorical_mode: str = "combined",
 ) -> dict[str, Any]:
     """Compare clean, corrupted, and production-cleaned training on a future holdout.
 
@@ -137,6 +145,13 @@ def run_regression_corruption_experiment(
         raise ValueError(
             "corruption_type must be one of: " + ", ".join(SUPPORTED_REGRESSION_CORRUPTIONS)
         )
+    if corruption_type == "categorical_inconsistency":
+        if categorical_mode not in CATEGORICAL_CORRUPTION_MODES:
+            raise ValueError(
+                "categorical_mode must be one of: " + ", ".join(CATEGORICAL_CORRUPTION_MODES)
+            )
+    elif categorical_mode != "combined":
+        raise ValueError("categorical_mode applies only to categorical_inconsistency")
     snapshot = frame.copy(deep=True)
     features, target, selected, seed_values, declared_numeric, declared_categorical = _validate(
         frame, target_column, feature_columns, numeric_columns, categorical_columns,
@@ -173,6 +188,7 @@ def run_regression_corruption_experiment(
             rate=float(corruption_rate),
             seed=corruption_seed,
             defects=[corruption_type],
+            categorical_mode=categorical_mode if corruption_type == "categorical_inconsistency" else "combined",
             numeric_columns=numeric,
         )
         defect = corruption.ground_truth["defects"][corruption_type]
@@ -182,15 +198,28 @@ def run_regression_corruption_experiment(
                 + str(defect.get("skipped_reason"))
             )
 
-        if corruption_type in {"missingness", "invalid_values", "numerical_anomalies"}:
+        if corruption_type in {
+            "missingness", "invalid_values", "numerical_anomalies",
+            "categorical_inconsistency",
+        }:
             corrupted_x = corruption.frame.copy(deep=True)
             corrupted_y = train_y.copy(deep=True)
             cleaned_x, cleaning = dataset_cleaning._transform(corrupted_x, {
                 "drop_exact_duplicates": False,
                 "fill_numeric_median": numeric if corruption_type in {"missingness", "invalid_values"} else [],
                 "fill_categorical_mode": categorical if corruption_type == "missingness" else [],
-                "trim_whitespace": [],
-                "lowercase_categories": [],
+                "trim_whitespace": (
+                    categorical
+                    if corruption_type == "categorical_inconsistency"
+                    and categorical_mode in {"combined", "whitespace_only"}
+                    else []
+                ),
+                "lowercase_categories": (
+                    categorical
+                    if corruption_type == "categorical_inconsistency"
+                    and categorical_mode in {"combined", "case_only"}
+                    else []
+                ),
                 "clip_numeric_iqr": numeric if corruption_type == "numerical_anomalies" else [],
             })
             cleaned_y = train_y.copy(deep=True)
@@ -211,6 +240,21 @@ def run_regression_corruption_experiment(
                     if not np.isfinite(values).all():
                         raise RuntimeError(
                             f"production median cleaning left invalid numeric values in '{column}'"
+                        )
+            if corruption_type == "categorical_inconsistency":
+                for record in injection_records:
+                    column = str(record["column"])
+                    row_index = int(record["row_index"])
+                    expected = str(train_x.iloc[row_index][column])
+                    if categorical_mode in {"combined", "whitespace_only"}:
+                        expected = expected.strip()
+                    if categorical_mode in {"combined", "case_only"}:
+                        expected = expected.lower()
+                    observed = str(cleaned_x.iloc[row_index][column])
+                    if observed != expected:
+                        raise RuntimeError(
+                            f"production categorical cleaning did not normalize injected cell "
+                            f"'{column}' at training row {row_index}"
                         )
             if corruption_type == "numerical_anomalies":
                 clip_operations = {
@@ -266,6 +310,27 @@ def run_regression_corruption_experiment(
         test_reference[target_column] = test_y
         test_hash = _frame_sha256(test_reference)
         test_snapshot = test_reference.copy(deep=True)
+        test_conditions = {name: test_x for name in condition_names}
+        cleaned_test_transform = "identity"
+        if corruption_type == "categorical_inconsistency":
+            # Apply the same deterministic normalization to an inference copy.
+            # No test statistics are fitted and the raw test frame stays unchanged.
+            cleaned_test_x = test_x.copy(deep=True)
+            for column in categorical:
+                values = cleaned_test_x[column].astype("string")
+                if categorical_mode in {"combined", "whitespace_only"}:
+                    values = values.str.strip()
+                if categorical_mode in {"combined", "case_only"}:
+                    values = values.str.lower()
+                cleaned_test_x[column] = values.astype(object)
+            test_conditions["cleaned_corrupted"] = cleaned_test_x
+            cleaned_test_transform = (
+                "trim_whitespace+lowercase_categories_on_inference_copy"
+                if categorical_mode == "combined"
+                else "trim_whitespace_on_inference_copy"
+                if categorical_mode == "whitespace_only"
+                else "lowercase_categories_on_inference_copy"
+            )
         train_conditions = {
             "clean": (train_x, train_y),
             "corrupted": (corrupted_x, corrupted_y),
@@ -273,7 +338,7 @@ def run_regression_corruption_experiment(
         }
         conditions = {
             name: _fit(
-                train_conditions[name][0], test_x,
+                train_conditions[name][0], test_conditions[name],
                 train_conditions[name][1], test_y,
                 numeric, categorical, float(alpha),
             )
@@ -298,6 +363,8 @@ def run_regression_corruption_experiment(
                 "test_positions": [split, len(features) - 1],
                 "clean_test_sha256": test_hash,
                 "test_partition_untouched": True,
+                "cleaned_condition_test_transform": cleaned_test_transform,
+                "test_transform_fitted_parameters": False,
             },
             "features": {
                 "selected_columns": list(selected),
@@ -307,10 +374,11 @@ def run_regression_corruption_experiment(
             },
             "corruption": {
                 "defect_type": corruption_type,
+                "categorical_mode": categorical_mode if corruption_type == "categorical_inconsistency" else None,
                 "rate": float(corruption_rate),
                 "injection_unit": injection_unit,
                 "injected_count": injected_count,
-                "injected_cells": injected_count if corruption_type in {"missingness", "invalid_values", "numerical_anomalies"} else None,
+                "injected_cells": injected_count if corruption_type in {"missingness", "invalid_values", "numerical_anomalies", "categorical_inconsistency"} else None,
                 "injected_rows": injected_count if corruption_type == "duplicates" else None,
                 "corrupted_training_rows": len(corrupted_x),
                 "cleaned_training_rows": len(cleaned_x),
@@ -348,7 +416,7 @@ def run_regression_corruption_experiment(
     ])
     reference = pd.concat([features, target.rename(target_column)], axis=1)
     return {
-        "schema_version": 4,
+        "schema_version": 5,
         "task_type": "regression",
         "model": "ridge_regression",
         "target_column": target_column,
@@ -357,6 +425,7 @@ def run_regression_corruption_experiment(
             "test_size": float(test_size),
             "split_strategy": "chronological_ordered_holdout",
             "corruption_type": corruption_type,
+            "categorical_mode": categorical_mode if corruption_type == "categorical_inconsistency" else None,
             "corruption_rate": float(corruption_rate),
             "ridge_alpha": float(alpha),
             "feature_columns": list(selected),
@@ -374,6 +443,8 @@ def run_regression_corruption_experiment(
             "Median/mode imputation is one explicit missingness policy, not a universal correction.",
             "For invalid_values, the selected numeric-median cleaning operation explicitly coerces non-numeric and non-finite cells to missing before imputation; cells are counted separately in cleaning evidence.",
             "For numerical_anomalies, the production clip_numeric_iqr operation fits Tukey 1.5xIQR fences on the corrupted training partition only and clips both tails; it can also clip legitimate training extremes.",
+            "For categorical_inconsistency, the selected categorical mode is injected only into training cells; production trim/lowercase operations normalize training data, and the same fixed normalization is applied to an inference copy without fitting test statistics.",
+            "Lowercase normalization can merge semantically distinct labels and is appropriate only when the declared categories are case-insensitive.",
             "Ridge uses a fixed alpha and one chronological holdout; no rolling-origin validation is performed.",
         ],
     }

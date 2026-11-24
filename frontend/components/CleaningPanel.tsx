@@ -588,6 +588,10 @@ export default function CleaningPanel({ dataset }: { dataset: Dataset | null }) 
                 </ul>
               )}
 
+              <p role="note" className="mt-4 rounded-lg border border-amber-300/15 bg-amber-300/[0.05] px-3 py-2 text-xs leading-5 text-amber-100">
+                Lowercase normalization is high-risk: it can merge semantically distinct labels. Use it only when categories are case-insensitive, and inspect the preview before applying.
+              </p>
+
               <button
                 type="button"
                 className="primary-button mt-5 focus-ring"

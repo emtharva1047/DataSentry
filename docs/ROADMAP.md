@@ -178,3 +178,8 @@ The UCI Bike Sharing workflow completed 27 experiments (three defect types × th
 - Added API schema validation, TypeScript request/response types, dashboard operation selection, and preview impact evidence.
 - Extended the Bike Sharing regression runner to inject finite numerical extremes into training features only and compare clean, corrupted, and production-IQR-clipped conditions across three seeds and three rates. The chronological future test partition remains untouched.
 - The research workflow completed 9 numerical-anomaly rate/seed trials (27 Ridge fits) across 1%, 5%, and 10%. Production IQR clipping improved MAE/RMSE/R² relative to corrupted training, but did not restore the clean baseline. It clipped 736–739, 3,339–3,344, and 6,565–6,566 cells per seed versus 652, 3,259, and 6,517 injected cells; the extra clipped cells were pre-existing IQR outliers and reinforce the manual-review-only policy. The chronological test fingerprint remained unchanged.
+
+
+## 24 November 2026 — Pure case-only categorical downstream regression (implementation)
+
+The Bike Sharing regression adapter now converts its integer-coded calendar/weather predictors to the shared documented semantic labels before downstream corruption. The regression engine adds a pure case-only categorical condition with exact injected-cell records, explicit production lowercase cleaning on training rows, and the same deterministic lowercase operation on an inference copy of the future test features. No test statistics are fitted; the raw test partition remains unchanged and its fingerprint is asserted. The workflow now covers five training-only defect families. The measured categorical-regression artifact is pending CI completion and inspection.

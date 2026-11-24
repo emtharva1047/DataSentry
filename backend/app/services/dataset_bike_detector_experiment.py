@@ -17,50 +17,7 @@ from .dataset_bike_reference_experiment import (
     build_bike_sharing_reference,
 )
 
-# The source stores these predictors as integer codes. Convert them to explicit
-# semantic labels before detector benchmarking so numeric-looking categories
-# cannot be misclassified as continuous measurements.
-CATEGORY_LABELS: dict[str, dict[int, str]] = {
-    "season": {
-        1: "season_spring",
-        2: "season_summer",
-        3: "season_fall",
-        4: "season_winter",
-    },
-    "yr": {0: "year_2011", 1: "year_2012"},
-    "mnth": {
-        1: "month_january",
-        2: "month_february",
-        3: "month_march",
-        4: "month_april",
-        5: "month_may",
-        6: "month_june",
-        7: "month_july",
-        8: "month_august",
-        9: "month_september",
-        10: "month_october",
-        11: "month_november",
-        12: "month_december",
-    },
-    "hr": {value: f"hour_{value:02d}" for value in range(24)},
-    "holiday": {0: "not_holiday", 1: "holiday"},
-    "weekday": {
-        0: "weekday_sunday",
-        1: "weekday_monday",
-        2: "weekday_tuesday",
-        3: "weekday_wednesday",
-        4: "weekday_thursday",
-        5: "weekday_friday",
-        6: "weekday_saturday",
-    },
-    "workingday": {0: "non_working_day", 1: "working_day"},
-    "weathersit": {
-        1: "weather_clear",
-        2: "weather_mist_cloudy",
-        3: "weather_light_rain_snow",
-        4: "weather_heavy_rain_snow",
-    },
-}
+from .dataset_bike_categories import CATEGORY_LABELS, semantic_category as _semantic_category
 
 
 def _frame_sha256(frame: pd.DataFrame) -> str:
