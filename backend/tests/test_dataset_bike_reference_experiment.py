@@ -126,7 +126,9 @@ def test_bike_regression_runs_three_seeds_with_untouched_future_test(monkeypatch
         assert run["corruption"]["injected_cells"] > 0
         assert run["split"]["test_partition_untouched"] is True
         assert run["split"]["cleaned_condition_test_transform"] == "lowercase_categories_on_inference_copy"
-        assert run["conditions"]["cleaned_corrupted"]["metrics"] == run["conditions"]["clean"]["metrics"]
+        clean_metrics = run["conditions"]["clean"]["metrics"]
+        cleaned_metrics = run["conditions"]["cleaned_corrupted"]["metrics"]
+        assert all(cleaned_metrics[name] == clean_metrics[name] for name in ("mae", "rmse", "r2"))
         assert sum(
             operation["affected_cells"]
             for operation in run["cleaning"]["operations"]

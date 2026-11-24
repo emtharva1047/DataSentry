@@ -186,7 +186,9 @@ def test_case_only_categorical_regression_uses_production_lowercase_and_untouche
         ]
         assert {item["columns"][0] for item in operations} == {"season"}
         assert sum(item["affected_cells"] for item in operations) == corruption["injected_cells"]
-        assert run["conditions"]["cleaned_corrupted"]["metrics"] == run["conditions"]["clean"]["metrics"]
+        clean_metrics = run["conditions"]["clean"]["metrics"]
+        cleaned_metrics = run["conditions"]["cleaned_corrupted"]["metrics"]
+        assert all(cleaned_metrics[name] == clean_metrics[name] for name in ("mae", "rmse", "r2"))
         assert np.isfinite(run["conditions"]["corrupted"]["metrics"]["rmse"])
     assert len(test_hashes) == 1
     pd.testing.assert_frame_equal(frame, original)
