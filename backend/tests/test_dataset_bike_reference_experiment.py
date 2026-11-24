@@ -115,3 +115,20 @@ def test_bike_regression_runs_three_seeds_with_untouched_future_test(monkeypatch
         ) >= run["corruption"]["injected_cells"]
         for run in anomaly_experiment["per_seed"]
     )
+    assert report["schema_version"] == 4
+    assert report["dataset"]["regression_frame_sha256"]
+    assert report["dataset"]["regression_categorical_label_maps"]["season"]["1"] == "season_spring"
+    assert report["downstream_regression"]["categorical_mode"] == "case_only"
+    categorical_experiment = report["downstream_regression"]["categorical_experiments"][0]
+    assert categorical_experiment["configuration"]["corruption_type"] == "categorical_inconsistency"
+    assert categorical_experiment["configuration"]["categorical_mode"] == "case_only"
+    for run in categorical_experiment["per_seed"]:
+        assert run["corruption"]["injected_cells"] > 0
+        assert run["split"]["test_partition_untouched"] is True
+        assert run["split"]["cleaned_condition_test_transform"] == "lowercase_categories_on_inference_copy"
+        assert run["conditions"]["cleaned_corrupted"]["metrics"] == run["conditions"]["clean"]["metrics"]
+        assert sum(
+            operation["affected_cells"]
+            for operation in run["cleaning"]["operations"]
+            if operation["operation"] == "lowercase_categories"
+        ) == run["corruption"]["injected_cells"]

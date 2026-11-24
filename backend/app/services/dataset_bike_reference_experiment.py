@@ -9,6 +9,8 @@ from zipfile import BadZipFile, ZipFile
 import numpy as np
 import pandas as pd
 import sklearn
+from .dataset_bike_categories import CATEGORY_LABELS, semantic_category
+from .dataset_research import CATEGORICAL_CORRUPTION_MODES
 from .dataset_regression_experiment import DEFAULT_REGRESSION_SEEDS, run_regression_corruption_experiment
 
 BIKE_SHARING_SOURCE_URL = "https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset"
@@ -167,10 +169,32 @@ def build_bike_sharing_reference() -> tuple[pd.DataFrame, pd.DataFrame, dict[str
 def run_bike_sharing_regression_experiment(
     *, rates: Sequence[float] = (0.01, 0.05, 0.10),
     seeds: Sequence[int] = DEFAULT_REGRESSION_SEEDS, test_size: float = 0.25, alpha: float = 1.0,
-    corruption_types: Sequence[str] = ("missingness", "duplicates", "invalid_values", "numerical_anomalies"),
+    corruption_types: Sequence[str] = (
+        "missingness", "duplicates", "invalid_values", "numerical_anomalies",
+        "categorical_inconsistency",
+    ),
+    categorical_mode: str = "case_only",
 ) -> dict[str, Any]:
     """Run multi-rate, multi-seed downstream regression for supported training defects."""
     features, full_frame, metadata = build_bike_sharing_reference()
+    target = full_frame[TARGET_COLUMN].copy(deep=True)
+    features = features.copy(deep=True)
+    for column in CATEGORICAL_COLUMNS:
+        features[column] = semantic_category(features[column], column)
+    full_frame = features.copy(deep=True)
+    full_frame[TARGET_COLUMN] = target.to_numpy(copy=True)
+    metadata = {
+        **metadata,
+        "regression_frame_sha256": _frame_sha256(full_frame),
+        "regression_categorical_label_maps": {
+            column: {str(code): label for code, label in mapping.items()}
+            for column, mapping in CATEGORY_LABELS.items()
+        },
+        "regression_semantic_mapping_note": (
+            "Integer-coded calendar/weather predictors are mapped to explicit semantic "
+            "labels before categorical corruption and regression evaluation."
+        ),
+    }
     normalized_rates = tuple(float(rate) for rate in rates)
     if not normalized_rates or len(set(normalized_rates)) != len(normalized_rates) or any(
         not np.isfinite(rate) or not 0 < rate <= 0.5 for rate in normalized_rates
@@ -179,7 +203,14 @@ def run_bike_sharing_regression_experiment(
     if isinstance(corruption_types, (str, bytes)):
         raise ValueError("corruption_types must be a sequence of supported defect names")
     normalized_types = tuple(corruption_types)
-    supported_types = ("missingness", "duplicates", "invalid_values", "numerical_anomalies")
+    supported_types = (
+        "missingness", "duplicates", "invalid_values", "numerical_anomalies",
+        "categorical_inconsistency",
+    )
+    if not isinstance(categorical_mode, str) or categorical_mode not in CATEGORICAL_CORRUPTION_MODES:
+        raise ValueError(
+            "categorical_mode must be one of: " + ", ".join(CATEGORICAL_CORRUPTION_MODES)
+        )
     if (
         not normalized_types
         or len(set(normalized_types)) != len(normalized_types)
@@ -194,13 +225,14 @@ def run_bike_sharing_regression_experiment(
                 numeric_columns=NUMERIC_COLUMNS, categorical_columns=CATEGORICAL_COLUMNS,
                 seeds=seeds, test_size=test_size, corruption_rate=rate, alpha=alpha,
                 corruption_type=corruption_type,
+                categorical_mode=categorical_mode if corruption_type == "categorical_inconsistency" else "combined",
             )
             for rate in normalized_rates
         ]
         for corruption_type in normalized_types
     }
     return {
-        "schema_version": 3,
+        "schema_version": 4,
         "dataset": metadata,
         "downstream_regression": {
             "corruption_types": list(normalized_types),
@@ -209,6 +241,8 @@ def run_bike_sharing_regression_experiment(
             "duplicate_experiments": experiments_by_type.get("duplicates", []),
             "invalid_value_experiments": experiments_by_type.get("invalid_values", []),
             "numerical_anomaly_experiments": experiments_by_type.get("numerical_anomalies", []),
+            "categorical_experiments": experiments_by_type.get("categorical_inconsistency", []),
+            "categorical_mode": categorical_mode if "categorical_inconsistency" in normalized_types else None,
         },
         "scope_limitations": [
             "One UCI hourly reference and one chronological 75/25 holdout.",
@@ -216,6 +250,8 @@ def run_bike_sharing_regression_experiment(
             "Missingness changes training features only; duplicate corruption appends complete feature/target training rows.",
             "Production cleaning uses median/mode imputation for missingness, exact duplicate removal for duplicate corruption, explicit invalid/non-finite-to-missing coercion plus median imputation for invalid_values, and review-only Tukey 1.5xIQR clipping for numerical_anomalies.",
             "IQR clipping estimates fences from the corrupted training partition only and may clip legitimate extreme observations; it is not a universal anomaly correction.",
+            "Categorical predictors are mapped from integer codes to documented semantic labels before regression corruption; case-only experiments use the production lowercase operation only for these case-insensitive labels.",
+            "The cleaned categorical condition applies the same deterministic lowercase transform to an inference copy of the future test features; no test statistics are fitted and the raw test fingerprint is retained.",
             "Ridge is a fixed-alpha baseline; no rolling-origin cross-validation or tuning is performed.",
             "casual and registered are excluded as direct target components; day_index is derived and documented.",
         ],
