@@ -598,3 +598,75 @@ The experiment uses one chronological 75/25 holdout and fixed Ridge alpha 1.0, n
 ### Artifact and reproducibility
 
 Workflow: [Bike Sharing Downstream Regression Research](https://github.com/emtharva1047/DataSentry/actions/runs/45098990303). The JSON artifact contains per-seed metrics, paired differences, exact cell labels, cleaning summaries, runtime, and provenance. Artifact ZIP SHA-256: `828729300f41f23dafd3619ed0ed9e0a7f0f36484e171e77ba842c178287ffd0`; JSON SHA-256: `adca2809d3e9c392ef299f94a11a53f342cfacd3ebe7ebf78b9550b958d8683d`. The ZIP artifact is retained by GitHub Actions until 23 December 2026.
+
+
+## 24 November 2026 — Pure case-only categorical downstream regression
+
+### Dataset and protocol
+
+The experiment uses the UCI Bike Sharing hourly reference (dataset 275, DOI 10.24432/C5W894, CC BY 4.0), with 17,379 rows and target cnt. Five numeric predictors and eight integer-coded calendar/weather predictors are used. The eight categorical codes are mapped to the shared, explicit semantic labels used by detector research; the mapping is stored in the artifact. The original analysis-frame SHA-256 is retained separately from the semantic regression-frame SHA-256.
+
+| Configuration | Value |
+|---|---:|
+| Training rows | 13,034 |
+| Future test rows | 4,345 |
+| Split | Chronological 75/25 |
+| Model | Ridge regression |
+| Alpha | 1.0 |
+| Defect families | Missingness, duplicates, invalid values, numerical anomalies, categorical inconsistency |
+| Corruption rates | 1%, 5%, 10% |
+| Seeds | 42, 123, 2026 |
+| Total rate/seed trials | 45 |
+| Total model fits | 135 |
+
+The categorical condition isolates pure case-only corruption. The generator changes letter case only, records exact training row/column labels, and does not modify the target or future test partition. The cleaned condition applies the production lowercase_categories operation to training rows. It applies the same fixed deterministic lowercase transform to an inference copy of the future test features; no test statistics are fitted and the raw test frame remains unchanged.
+
+### Case-only corruption counts
+
+| Rate | Injected categorical cells per seed | Lowercase-cleaned cells per seed |
+|---:|---:|---:|
+| 1% | 1,043 | 1,043 |
+| 5% | 5,214 | 5,214 |
+| 10% | 10,428 | 10,428 |
+
+### Downstream regression results
+
+Metrics are mean ± sample standard deviation (ddof=1) across the three corruption seeds. The clean baseline is identical across seeds because the chronological split and model configuration are fixed.
+
+| Rate | Condition | MAE ↓ | RMSE ↓ | R² ↑ |
+|---:|---|---:|---:|---:|
+| — | Clean baseline | 100.727961 ± 0 | 135.411983 ± 0 | 0.621147 ± 0 |
+| 1% | Case-corrupted | 100.740612 ± 0.039058 | 135.388223 ± 0.106700 | 0.621280 ± 0.000597 |
+| 1% | Production-cleaned | 100.727961 ± 0 | 135.411983 ± 0 | 0.621147 ± 0 |
+| 5% | Case-corrupted | 100.751874 ± 0.144984 | 135.415725 ± 0.130946 | 0.621126 ± 0.000733 |
+| 5% | Production-cleaned | 100.727961 ± 0 | 135.411983 ± 0 | 0.621147 ± 0 |
+| 10% | Case-corrupted | 100.812485 ± 0.337342 | 135.474931 ± 0.233422 | 0.620794 ± 0.001307 |
+| 10% | Production-cleaned | 100.727961 ± 0 | 135.411983 ± 0 | 0.621147 ± 0 |
+
+### Paired cleaned-minus-corrupted differences
+
+| Rate | ΔMAE | ΔRMSE | ΔR² |
+|---:|---:|---:|---:|
+| 1% | -0.012651 ± 0.039058 | +0.023760 ± 0.106700 | -0.000133 ± 0.000597 |
+| 5% | -0.023913 ± 0.144984 | -0.003742 ± 0.130946 | +0.000021 ± 0.000733 |
+| 10% | -0.084524 ± 0.337342 | -0.062948 ± 0.233422 | +0.000353 ± 0.001307 |
+
+The cleaned condition exactly reproduces the clean baseline for MAE, RMSE, and R². The corrupted-condition differences are small and not consistently directional: MAE is slightly worse at all three rates, while RMSE and R² move in mixed directions at 1% and 5%, with small degradation at 10%. These results do not establish a large or universal predictive effect.
+
+### Test integrity and interpretation
+
+The raw chronological future-test partition retained SHA-256 `a1b865ceaeffc4246da5b08d3ee29c41f20dcb0a76c281d39baa8e335392f00b` across all 45 rate/seed trials. Every run reports test_partition_untouched=true and test_transform_fitted_parameters=false. The cleaned condition's lowercase transform is a fixed inference-time normalization applied to a copy; no test statistics or labels are used to fit preprocessing.
+
+Lowercase normalization is high-risk because it can merge semantically distinct categories. It is used here only for the documented case-insensitive Bike Sharing semantic labels and is not a universal cleaning recommendation. The three seeds vary corruption locations, not the chronological split. This is one fixed holdout, not rolling-origin cross-validation or model tuning. The experiment uses one public reference and one fixed Ridge alpha.
+
+### Provenance and reproducibility
+
+- Workflow: [Bike Sharing Downstream Regression Research](https://github.com/emtharva1047/DataSentry/actions/runs/45310571907)
+- Artifact: uci-bike-sharing-regression
+- Artifact ZIP SHA-256: `28b8a3fa87f8d18059fd07fff70265cc4212eea79a2c451bbc72d9d10be2cd82`
+- JSON SHA-256: `ec8345f423e21c4d2585db8b608ef5e3dd20c53751c5b106f425dcaf59e1504c`
+- UCI archive SHA-256: `b70182d0d0508e9abbb79306ce5c0cec34869000f8220175ac83d11dbe845401`
+- hour.csv SHA-256: `e03de4ee4ef4dc376ac6e04bf829673c6269e8eba5c60fa121640fa2f829504f`
+- Original analysis-frame SHA-256: `8ff14f833673fbad9c35ec3267c5c23335f98ba2b586e63bba67f98a755ee804`
+- Semantic regression-frame SHA-256: `8af8260347aad4b35c548b5b715cfb80aae545f9e23f76136933b846845b6714`
+- Software: Python 3.12.16, pandas 2.3.3, NumPy 2.5.5, scikit-learn 1.9.1.
