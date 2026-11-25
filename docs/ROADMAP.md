@@ -183,3 +183,11 @@ The UCI Bike Sharing workflow completed 27 experiments (three defect types × th
 ## 24 November 2026 — Pure case-only categorical downstream regression (implementation)
 
 The Bike Sharing regression adapter now converts its integer-coded calendar/weather predictors to the shared documented semantic labels before downstream corruption. The regression engine adds a pure case-only categorical condition with exact injected-cell records, explicit production lowercase cleaning on training rows, and the same deterministic lowercase operation on an inference copy of the future test features. No test statistics are fitted; the raw test partition remains unchanged and its fingerprint is asserted. The workflow now covers five training-only defect families. The pure case-only categorical condition completed nine rate/seed trials (27 Ridge fits); production lowercase cleaning restored the clean baseline exactly, while corrupted effects were small and not consistently directional. The raw future-test fingerprint remained identical across all 45 rate/seed trials. Full measured results and provenance are in docs/RESEARCH_RESULTS.md.
+
+
+## 25 November 2026 — Clean baseline temporal-window stability (implementation)
+
+- Added expanding-window rolling-origin baseline evaluation at 60%, 70%, and 80% training prefixes, each followed by a non-overlapping 10% future window.
+- Reports per-window predictive metrics and mean/sample standard deviation across temporal windows. This is not random-seed uncertainty.
+- Type inference and preprocessing are training-prefix-only; raw future windows are fingerprinted and checked for mutation.
+- GitHub Actions artifact and measured results are pending.
