@@ -146,7 +146,8 @@ def run_rolling_origin_baseline_stability(
 
     for window_index, train_fraction in enumerate(fractions, start=1):
         train_end = int(np.floor(len(features) * train_fraction))
-        test_end = int(np.floor(len(features) * (train_fraction + float(test_window_fraction))))
+        test_end_position = len(features) * (train_fraction + float(test_window_fraction))
+        test_end = int(np.floor(np.nextafter(test_end_position, np.inf)))
         if train_end < 20 or test_end - train_end < 2:
             raise ValueError("each rolling-origin window needs at least 20 training and 2 test rows")
         if train_end < previous_test_end:
