@@ -58,7 +58,7 @@ The ML-readiness API is `POST /api/datasets/{id}/ml-readiness`. It requires a ta
 - [x] Extend detector evaluation to the larger mixed-type UCI Bike Sharing reference; map integer-coded categorical predictors to semantic labels and execute the applicable five-defect benchmark at 1%, 5%, and 10% across seeds 42, 123, and 2026 (21 detector/rate combinations, 63 detector-seed runs, no skipped runs). Measured results are in docs/RESEARCH_RESULTS.md.
 - [ ] Extend downstream regression to training-only invalid-value, duplicate, categorical inconsistency, and numerical-anomaly conditions; complete the quality-version-2 categorical re-benchmark on UCI Wine and Bike Sharing (combined whitespace-plus-case precision/recall/F1 = 1.0 at all tested rates); pure case-only public-reference evaluation and additional downstream regression corruption families remain.
 - [x] ML dashboard integration.
-- [ ] Repeated-seed baseline evaluation, demo script, broader mixed-type/regression experiments, and final delivery report.
+- [ ] Research consolidation and final delivery: clean-baseline temporal-window variability is measured; remaining work is consolidated research synthesis, demo script, setup/known-limitations audit, and final delivery report.
 - [x] Full browser-to-FastAPI verification (Playwright Chromium, 16 November 2026).
 
 The corruption primitives live in backend/app/services/dataset_research.py; the detector benchmark runner lives in backend/app/services/dataset_benchmark.py and the CLI is backend/scripts/run_detector_benchmark.py. The runner first rejects deterministic pre-existing missing cells, exact duplicate rows, detected categorical whitespace/case variants, and invalid values in inferred numeric-like columns; statistical outliers are retained as baseline observations and count as false positives if flagged. It injects one defect type into a fresh in-memory copy per seed, applies only relevant detectors, and evaluates cell-level labels for missingness/category/type defects and row-level labels for duplicates/numerical anomalies. Numerical anomaly adapters call the same private IQR, robust-Z, and Isolation Forest implementations used by the production API to avoid algorithm drift. It records per-seed confusion counts, precision/recall/F1/accuracy, prediction runtime, and Python tracemalloc peak-allocation delta. The memory proxy excludes some native allocations. Aggregation is withheld if any requested seed is skipped or incomplete. The runner and CLI are implemented and tested. UCI Wine detector/classification results and UCI Bike Sharing detector results plus downstream regression under training-only missingness are documented. Additional regression corruption families, categorical-consistency precision improvement, Isolation Forest contamination sensitivity, repeated-seed baseline uncertainty, demo script, and final delivery report remain outstanding.
@@ -74,7 +74,7 @@ Keep CSV only, SQLite, one classifier and one regressor. Defer role-based access
 - The workspace calls the existing read-only readiness endpoint before enabling baseline training; blockers disable training while warnings remain visible for review.
 - The baseline action exposes the configured holdout fraction and random seed and displays task-appropriate metrics, classification confusion counts, split sizes, preprocessing fit scope, software versions, and source fingerprint.
 - The UI does not claim that readiness heuristics prove absence of leakage or that one holdout is a general performance estimate.
-- Repeated-seed baseline uncertainty, additional downstream regression corruption families, demo script, and final delivery report remain outstanding.
+- Rolling-origin temporal baseline variability is measured; remaining work is research consolidation, demo script, and final delivery report.
 
 
 ## Full-stack verification increment (16 November 2026)
@@ -137,7 +137,7 @@ The UCI Wine and Bike Sharing detector workflows were rerun on the quality-versi
 
 - Synthetic corruption now distinguishes combined whitespace-plus-case, whitespace-only, and pure case-only variants; the latter changes letter case only and never adds whitespace.
 - Ground-truth schema version 2 records the categorical corruption mode.
-- A dedicated UCI Wine and Bike Sharing workflow evaluates the production quality-v2 canonical-spelling rule with three rates and three seeds. Public performance claims remain pending artifact inspection.
+- A dedicated UCI Wine and Bike Sharing workflow evaluates the production quality-v2 canonical-spelling rule with three rates and three seeds. The workflow artifact was inspected; controlled synthetic metrics are documented in docs/RESEARCH_RESULTS.md and are not real-world performance estimates.
 
 
 ## 20 November 2026 — Pure case-only categorical evaluation (measured)
@@ -168,7 +168,7 @@ The 22 November invalid-value regression adapter now passes declared numeric fea
 
 ## 22 November 2026 — Invalid-value downstream regression (measured)
 
-The UCI Bike Sharing workflow completed 27 experiments (three defect types × three rates × three seeds; 81 Ridge fits). Invalid-value injection was limited to the five explicitly declared numeric predictors, avoiding numeric-looking category-code strings. The production fill_numeric_median operation reported exactly the injected invalid-cell count, zero pre-existing missing cells, and no row loss. The cleaned-corrupted condition reproduced the leakage-safe model pipeline's native median-imputation metrics exactly. The chronological future test partition retained the same SHA-256 across runs. See docs/RESEARCH_RESULTS.md for measured metrics and provenance. Numerical-anomaly downstream regression implementation is now present; measured results are pending artifact inspection. Final delivery hardening remains.
+The UCI Bike Sharing workflow completed 27 experiments (three defect types × three rates × three seeds; 81 Ridge fits). Invalid-value injection was limited to the five explicitly declared numeric predictors, avoiding numeric-looking category-code strings. The production fill_numeric_median operation reported exactly the injected invalid-cell count, zero pre-existing missing cells, and no row loss. The cleaned-corrupted condition reproduced the leakage-safe model pipeline's native median-imputation metrics exactly. The chronological future test partition retained the same SHA-256 across runs. See docs/RESEARCH_RESULTS.md for measured metrics and provenance. Numerical-anomaly downstream regression completed; measured results and limitations are documented in docs/RESEARCH_RESULTS.md. Final delivery hardening remains.
 
 
 ## 23 November 2026 — Numerical-anomaly cleaning and downstream regression (measured)
@@ -183,3 +183,20 @@ The UCI Bike Sharing workflow completed 27 experiments (three defect types × th
 ## 24 November 2026 — Pure case-only categorical downstream regression (implementation)
 
 The Bike Sharing regression adapter now converts its integer-coded calendar/weather predictors to the shared documented semantic labels before downstream corruption. The regression engine adds a pure case-only categorical condition with exact injected-cell records, explicit production lowercase cleaning on training rows, and the same deterministic lowercase operation on an inference copy of the future test features. No test statistics are fitted; the raw test partition remains unchanged and its fingerprint is asserted. The workflow now covers five training-only defect families. The pure case-only categorical condition completed nine rate/seed trials (27 Ridge fits); production lowercase cleaning restored the clean baseline exactly, while corrupted effects were small and not consistently directional. The raw future-test fingerprint remained identical across all 45 rate/seed trials. Full measured results and provenance are in docs/RESEARCH_RESULTS.md.
+
+
+## 25 November 2026 — Clean baseline temporal-window stability (implementation)
+
+- Added expanding-window rolling-origin baseline evaluation at 70%, 80%, and 90% training prefixes, each followed by a non-overlapping 10% future window.
+- Reports per-window predictive metrics and mean/sample standard deviation across temporal windows. This is not random-seed uncertainty.
+- Type inference and preprocessing are training-prefix-only; raw future windows are fingerprinted and checked for mutation.
+- The 25 November workflow completed and its artifact was inspected. Across three non-overlapping future windows, clean Ridge mean ± sample SD was MAE 102.337591 ± 14.717943, RMSE 134.584052 ± 16.832018, and R² 0.610930 ± 0.007623. This is temporal-window dispersion, not random-seed uncertainty or a confidence interval. Full provenance is recorded in docs/RESEARCH_RESULTS.md.
+
+
+## 25 November 2026 — Clean baseline temporal-window stability (measured)
+
+- Three expanding chronological training prefixes (70%, 80%, 90%) each evaluated on the immediately following non-overlapping 10% future window.
+- Mean ± sample SD across windows: MAE 102.337591 ± 14.717943; RMSE 134.584052 ± 16.832018; R² 0.610930 ± 0.007623.
+- The three-window SD describes temporal-window dispersion, not stochastic seed uncertainty or a confidence interval.
+- All preprocessing and type inference were training-prefix-only; all future test windows were fingerprinted and remained untouched.
+- Workflow artifact was downloaded and inspected; exact values and hashes are in docs/RESEARCH_RESULTS.md.

@@ -1,0 +1,59 @@
+name: Bike Sharing Rolling-Origin Baseline Stability
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/app/services/dataset_regression_stability.py"
+      - "backend/app/services/dataset_regression_experiment.py"
+      - "backend/app/services/dataset_bike_reference_experiment.py"
+      - "backend/app/services/dataset_bike_categories.py"
+      - "backend/scripts/run_bike_sharing_baseline_stability.py"
+      - "backend/tests/test_dataset_regression_stability.py"
+      - ".github/workflows/bike-sharing-baseline-stability.yml"
+  pull_request:
+    paths:
+      - "backend/app/services/dataset_regression_stability.py"
+      - "backend/app/services/dataset_regression_experiment.py"
+      - "backend/app/services/dataset_bike_reference_experiment.py"
+      - "backend/app/services/dataset_bike_categories.py"
+      - "backend/scripts/run_bike_sharing_baseline_stability.py"
+      - "backend/tests/test_dataset_regression_stability.py"
+      - ".github/workflows/bike-sharing-baseline-stability.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rolling-origin-baseline:
+    name: UCI Bike Sharing clean Ridge baseline across future windows
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend dependencies
+        working-directory: backend
+        run: python -m pip install -r requirements.txt
+      - name: Run rolling-origin baseline stability evaluation
+        working-directory: backend
+        run: >-
+          python -m scripts.run_bike_sharing_baseline_stability
+          --train-fractions 0.70,0.80,0.90
+          --test-window-fraction 0.10
+          --alpha 1.0
+          --output /tmp/uci-bike-sharing-rolling-origin-baseline.json
+      - name: Upload reproducible baseline report
+        uses: actions/upload-artifact@v4
+        with:
+          name: uci-bike-sharing-rolling-origin-baseline
+          path: /tmp/uci-bike-sharing-rolling-origin-baseline.json
+          if-no-files-found: error
+          retention-days: 30
