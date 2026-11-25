@@ -125,11 +125,11 @@ A milestone is complete only when its implementation is present, relevant checks
 
 ## 25 November 2026 — Clean baseline temporal-window stability (implementation)
 
-- Added a clean Ridge baseline stability evaluator with three expanding chronological training prefixes (60%, 70%, 80%) and immediately following non-overlapping 10% future windows.
+- Added a clean Ridge baseline stability evaluator with three expanding chronological training prefixes (70%, 80%, 90%) and immediately following non-overlapping 10% future windows.
 - Numeric/categorical type inference and every preprocessing fit remain scoped to the current training prefix; the future test window is fingerprinted and checked for mutation.
 - Reports per-window MAE/RMSE/R² plus mean and sample standard deviation (ddof=1) across the three future windows.
 - Explicitly labels this as temporal-window variability, not random-seed variability: Ridge is deterministic for a fixed split/configuration, and corruption seeds in earlier experiments vary only injected locations.
-- Added a reproducible UCI Bike Sharing workflow and synthetic rolling-origin tests. Measured results remain pending artifact completion and inspection.
+- Added a reproducible UCI Bike Sharing workflow and synthetic rolling-origin tests. The workflow completed and its artifact was inspected; measured results and provenance are recorded in docs/RESEARCH_RESULTS.md.
 
 
 ## 25 November 2026 — Clean baseline temporal-window stability (measured)

@@ -58,7 +58,7 @@ The ML-readiness API is `POST /api/datasets/{id}/ml-readiness`. It requires a ta
 - [x] Extend detector evaluation to the larger mixed-type UCI Bike Sharing reference; map integer-coded categorical predictors to semantic labels and execute the applicable five-defect benchmark at 1%, 5%, and 10% across seeds 42, 123, and 2026 (21 detector/rate combinations, 63 detector-seed runs, no skipped runs). Measured results are in docs/RESEARCH_RESULTS.md.
 - [ ] Extend downstream regression to training-only invalid-value, duplicate, categorical inconsistency, and numerical-anomaly conditions; complete the quality-version-2 categorical re-benchmark on UCI Wine and Bike Sharing (combined whitespace-plus-case precision/recall/F1 = 1.0 at all tested rates); pure case-only public-reference evaluation and additional downstream regression corruption families remain.
 - [x] ML dashboard integration.
-- [ ] Repeated-seed baseline evaluation, demo script, broader mixed-type/regression experiments, and final delivery report.
+- [ ] Research consolidation and final delivery: clean-baseline temporal-window variability is measured; remaining work is consolidated research synthesis, demo script, setup/known-limitations audit, and final delivery report.
 - [x] Full browser-to-FastAPI verification (Playwright Chromium, 16 November 2026).
 
 The corruption primitives live in backend/app/services/dataset_research.py; the detector benchmark runner lives in backend/app/services/dataset_benchmark.py and the CLI is backend/scripts/run_detector_benchmark.py. The runner first rejects deterministic pre-existing missing cells, exact duplicate rows, detected categorical whitespace/case variants, and invalid values in inferred numeric-like columns; statistical outliers are retained as baseline observations and count as false positives if flagged. It injects one defect type into a fresh in-memory copy per seed, applies only relevant detectors, and evaluates cell-level labels for missingness/category/type defects and row-level labels for duplicates/numerical anomalies. Numerical anomaly adapters call the same private IQR, robust-Z, and Isolation Forest implementations used by the production API to avoid algorithm drift. It records per-seed confusion counts, precision/recall/F1/accuracy, prediction runtime, and Python tracemalloc peak-allocation delta. The memory proxy excludes some native allocations. Aggregation is withheld if any requested seed is skipped or incomplete. The runner and CLI are implemented and tested. UCI Wine detector/classification results and UCI Bike Sharing detector results plus downstream regression under training-only missingness are documented. Additional regression corruption families, categorical-consistency precision improvement, Isolation Forest contamination sensitivity, repeated-seed baseline uncertainty, demo script, and final delivery report remain outstanding.
@@ -74,7 +74,7 @@ Keep CSV only, SQLite, one classifier and one regressor. Defer role-based access
 - The workspace calls the existing read-only readiness endpoint before enabling baseline training; blockers disable training while warnings remain visible for review.
 - The baseline action exposes the configured holdout fraction and random seed and displays task-appropriate metrics, classification confusion counts, split sizes, preprocessing fit scope, software versions, and source fingerprint.
 - The UI does not claim that readiness heuristics prove absence of leakage or that one holdout is a general performance estimate.
-- Repeated-seed baseline uncertainty, additional downstream regression corruption families, demo script, and final delivery report remain outstanding.
+- Rolling-origin temporal baseline variability is measured; remaining work is research consolidation, demo script, and final delivery report.
 
 
 ## Full-stack verification increment (16 November 2026)
@@ -137,7 +137,7 @@ The UCI Wine and Bike Sharing detector workflows were rerun on the quality-versi
 
 - Synthetic corruption now distinguishes combined whitespace-plus-case, whitespace-only, and pure case-only variants; the latter changes letter case only and never adds whitespace.
 - Ground-truth schema version 2 records the categorical corruption mode.
-- A dedicated UCI Wine and Bike Sharing workflow evaluates the production quality-v2 canonical-spelling rule with three rates and three seeds. Public performance claims remain pending artifact inspection.
+- A dedicated UCI Wine and Bike Sharing workflow evaluates the production quality-v2 canonical-spelling rule with three rates and three seeds. The workflow artifact was inspected; controlled synthetic metrics are documented in docs/RESEARCH_RESULTS.md and are not real-world performance estimates.
 
 
 ## 20 November 2026 — Pure case-only categorical evaluation (measured)
@@ -168,7 +168,7 @@ The 22 November invalid-value regression adapter now passes declared numeric fea
 
 ## 22 November 2026 — Invalid-value downstream regression (measured)
 
-The UCI Bike Sharing workflow completed 27 experiments (three defect types × three rates × three seeds; 81 Ridge fits). Invalid-value injection was limited to the five explicitly declared numeric predictors, avoiding numeric-looking category-code strings. The production fill_numeric_median operation reported exactly the injected invalid-cell count, zero pre-existing missing cells, and no row loss. The cleaned-corrupted condition reproduced the leakage-safe model pipeline's native median-imputation metrics exactly. The chronological future test partition retained the same SHA-256 across runs. See docs/RESEARCH_RESULTS.md for measured metrics and provenance. Numerical-anomaly downstream regression implementation is now present; measured results are pending artifact inspection. Final delivery hardening remains.
+The UCI Bike Sharing workflow completed 27 experiments (three defect types × three rates × three seeds; 81 Ridge fits). Invalid-value injection was limited to the five explicitly declared numeric predictors, avoiding numeric-looking category-code strings. The production fill_numeric_median operation reported exactly the injected invalid-cell count, zero pre-existing missing cells, and no row loss. The cleaned-corrupted condition reproduced the leakage-safe model pipeline's native median-imputation metrics exactly. The chronological future test partition retained the same SHA-256 across runs. See docs/RESEARCH_RESULTS.md for measured metrics and provenance. Numerical-anomaly downstream regression completed; measured results and limitations are documented in docs/RESEARCH_RESULTS.md. Final delivery hardening remains.
 
 
 ## 23 November 2026 — Numerical-anomaly cleaning and downstream regression (measured)
