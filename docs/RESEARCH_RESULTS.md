@@ -670,3 +670,52 @@ Lowercase normalization is high-risk because it can merge semantically distinct 
 - Original analysis-frame SHA-256: `8ff14f833673fbad9c35ec3267c5c23335f98ba2b586e63bba67f98a755ee804`
 - Semantic regression-frame SHA-256: `8af8260347aad4b35c548b5b715cfb80aae545f9e23f76136933b846845b6714`
 - Software: Python 3.12.16, pandas 2.3.3, NumPy 2.5.5, scikit-learn 1.9.1.
+
+
+## 25 November 2026 — Clean Ridge baseline rolling-origin stability (measured)
+
+### Dataset and protocol
+
+The experiment uses the UCI Bike Sharing hourly reference (dataset 275, DOI 10.24432/C5W894, CC BY 4.0), with 17,379 chronologically ordered rows and target cnt. The semantic regression frame has 13 predictors: eight documented categorical calendar/weather labels and five numeric predictors. The casual and registered columns are excluded because they are direct components of cnt; day_index is derived from dteday and is documented in the artifact.
+
+A clean Ridge baseline (alpha 1.0) is evaluated on three expanding training prefixes and the immediately following, non-overlapping 10% future windows. This places all evaluation windows in the final 30% of the chronological reference. Feature-type inference, median imputation, scaling, and one-hot encoding are fitted independently on each training prefix only. The model is deterministic; no random seed is used.
+
+| Window | Training prefix | Training rows | Future test positions | Test rows | MAE | RMSE | R² |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 70% | 12,165 | 12,165–13,902 | 1,738 | 108.992432 | 138.029885 | 0.602382 |
+| 2 | 80% | 13,903 | 13,903–15,640 | 1,738 | 112.552795 | 149.426506 | 0.613383 |
+| 3 | 90% | 15,641 | 15,641–17,378 | 1,738 | 85.467547 | 116.295765 | 0.617024 |
+
+### Temporal-window dispersion
+
+Mean and sample standard deviation (ddof=1) across the three future windows:
+
+| Metric | Mean | Sample SD |
+|---|---:|---:|
+| MAE ↓ | 102.337591 | 14.717943 |
+| RMSE ↓ | 134.584052 | 16.832018 |
+| R² ↑ | 0.610930 | 0.007623 |
+
+MAE and RMSE vary substantially by future window; the final 10% window is easier under these metrics than the preceding two. This is evidence of temporal heterogeneity in this reference and model setup. A single fixed 75/25 holdout would not expose this window-to-window variation.
+
+This is temporal-window variability, not stochastic seed uncertainty. The sample SD is descriptive across three non-overlapping test windows and is not a confidence interval. Training prefixes overlap by design as the window expands; future test windows do not overlap. The analysis uses one public reference and one fixed Ridge alpha, with no model tuning or confidence-interval claim.
+
+### Integrity and provenance
+
+- Every fold records preprocessing_fit_scope = training_partition_only and test_partition_untouched = true.
+- Future test-window SHA-256 values: window 1 a8472896fb25580df678b2efff056d27834534d87c0dabb580b83af7c8ff4aa7; window 2 22fdbfd9bb829a1c335389db9f21df10328886413ed04d0f9883c3ffb641b71; window 3 136bdd305f98e59b9d56158a3ccf1fa532ecdb6a96957da42ffa71398047adee.
+- Semantic regression-frame SHA-256: 8af8260347aad4b35c548b5b715cfb80aae545f9e23f76136933b846845b6714.
+- UCI archive SHA-256: b70182d0d0508e9abbb79306ce5c0cec34869000f8220175ac83d11dbe845401.
+- hour.csv SHA-256: e03de4ee4ef4dc376ac6e04bf829673c6269e8eba5c60fa121640fa2f829504f.
+- Software: Python 3.12.16, pandas 2.3.3, NumPy 2.5.5, scikit-learn 1.9.1.
+
+### Artifact and reproducibility
+
+Workflow: [Bike Sharing Rolling-Origin Baseline Stability](https://github.com/emtharva1047/DataSentry/actions/runs/45531043258). The JSON artifact contains the full configuration, semantic category maps, source fingerprints, per-window train/test positions, per-window metrics, aggregate mean/sample SD, and limitations.
+
+- Artifact name: uci-bike-sharing-rolling-origin-baseline
+- Artifact ID: 14984682241
+- Artifact ZIP SHA-256: f957debce5246bb9957db457431929ba20cc41a08c6b7cf953fa6cd5b8ae26c3
+- JSON SHA-256: e21d2b85a87a2774fb40cf9899a4c813d71caf694ac48ebf3f8eed5ce8f309a1
+- GitHub Actions retention expiry: 25 December 2026.
+

@@ -190,4 +190,13 @@ The Bike Sharing regression adapter now converts its integer-coded calendar/weat
 - Added expanding-window rolling-origin baseline evaluation at 70%, 80%, and 90% training prefixes, each followed by a non-overlapping 10% future window.
 - Reports per-window predictive metrics and mean/sample standard deviation across temporal windows. This is not random-seed uncertainty.
 - Type inference and preprocessing are training-prefix-only; raw future windows are fingerprinted and checked for mutation.
-- GitHub Actions artifact and measured results are pending.
+- The 25 November workflow completed and its artifact was inspected. Across three non-overlapping future windows, clean Ridge mean ± sample SD was MAE 102.337591 ± 14.717943, RMSE 134.584052 ± 16.832018, and R² 0.610930 ± 0.007623. This is temporal-window dispersion, not random-seed uncertainty or a confidence interval. Full provenance is recorded in docs/RESEARCH_RESULTS.md.
+
+
+## 25 November 2026 — Clean baseline temporal-window stability (measured)
+
+- Three expanding chronological training prefixes (70%, 80%, 90%) each evaluated on the immediately following non-overlapping 10% future window.
+- Mean ± sample SD across windows: MAE 102.337591 ± 14.717943; RMSE 134.584052 ± 16.832018; R² 0.610930 ± 0.007623.
+- The three-window SD describes temporal-window dispersion, not stochastic seed uncertainty or a confidence interval.
+- All preprocessing and type inference were training-prefix-only; all future test windows were fingerprinted and remained untouched.
+- Workflow artifact was downloaded and inspected; exact values and hashes are in docs/RESEARCH_RESULTS.md.
