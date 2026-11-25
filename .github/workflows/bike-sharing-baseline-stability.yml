@@ -46,7 +46,7 @@ jobs:
         working-directory: backend
         run: >-
           python -m scripts.run_bike_sharing_baseline_stability
-          --train-fractions 0.60,0.70,0.80
+          --train-fractions 0.70,0.80,0.90
           --test-window-fraction 0.10
           --alpha 1.0
           --output /tmp/uci-bike-sharing-rolling-origin-baseline.json

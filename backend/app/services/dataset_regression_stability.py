@@ -10,7 +10,7 @@ import pandas as pd
 from . import dataset_modeling
 from .dataset_regression_experiment import _fit
 
-DEFAULT_TRAIN_FRACTIONS = (0.60, 0.70, 0.80)
+DEFAULT_TRAIN_FRACTIONS = (0.70, 0.80, 0.90)
 DEFAULT_TEST_WINDOW_FRACTION = 0.10
 MINIMUM_STABILITY_ROWS = 30
 MAX_STABILITY_WINDOWS = 10

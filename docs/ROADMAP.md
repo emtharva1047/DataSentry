@@ -187,7 +187,7 @@ The Bike Sharing regression adapter now converts its integer-coded calendar/weat
 
 ## 25 November 2026 — Clean baseline temporal-window stability (implementation)
 
-- Added expanding-window rolling-origin baseline evaluation at 60%, 70%, and 80% training prefixes, each followed by a non-overlapping 10% future window.
+- Added expanding-window rolling-origin baseline evaluation at 70%, 80%, and 90% training prefixes, each followed by a non-overlapping 10% future window.
 - Reports per-window predictive metrics and mean/sample standard deviation across temporal windows. This is not random-seed uncertainty.
 - Type inference and preprocessing are training-prefix-only; raw future windows are fingerprinted and checked for mutation.
 - GitHub Actions artifact and measured results are pending.

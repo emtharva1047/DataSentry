@@ -38,7 +38,7 @@ def test_rolling_origin_reports_three_non_overlapping_future_windows_and_uncerta
     assert report["aggregates"]["window_count"] == 3
     assert len(report["per_window"]) == 3
 
-    expected_ranges = [([0, 71], [72, 83]), ([0, 83], [84, 95]), ([0, 95], [96, 107])]
+    expected_ranges = [([0, 83], [84, 95]), ([0, 95], [96, 107]), ([0, 107], [108, 119])]
     hashes = set()
     for run, (train_range, test_range) in zip(report["per_window"], expected_ranges):
         split = run["split"]
