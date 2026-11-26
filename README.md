@@ -343,3 +343,18 @@ For duplicate corruption, the complete training row includes its regression targ
 
 
 The shared synthetic corruption generator accepts explicit numeric feature columns from typed reference adapters. This prevents numeric-looking categorical codes from being treated as continuous fields during invalid-value and numerical-anomaly experiments.
+
+
+## Reproducible API-level demo
+
+From the backend directory, run:
+
+~~~powershell
+python -m scripts.run_end_to_end_demo
+~~~
+
+The command builds a deterministic sample CSV in memory and exercises the FastAPI upload-to-baseline journey: health/overview, upload/list/detail, profiling, inferred quality and DQS, caller-supplied schema validation, IQR/robust-Z/Isolation Forest review, cleaning recommendations, read-only preview, explicit immutable apply, version comparison, ML readiness, and a Ridge regression baseline. It verifies the original upload SHA-256 remains unchanged and that baseline preprocessing is fitted only on training rows.
+
+The demo uses an isolated in-memory SQLite database and a temporary upload/version directory. It does not read or write the normal application database, does not require credentials or network access, and removes its temporary files on exit. Run its automated integration test with pytest -q tests/test_end_to_end_demo.py from backend/.
+
+This is an API integration demo using FastAPI TestClient; it complements, but does not replace, the real-browser Playwright workflow described above.
