@@ -338,3 +338,19 @@ The existing Bike Sharing corruption experiments vary corruption locations acros
 The implementation is `backend/app/services/dataset_regression_stability.py`, with the public-reference runner `backend/scripts/run_bike_sharing_baseline_stability.py`. It evaluates the clean Ridge baseline at three expanding training prefixes (70%, 80%, 90%) and the immediately following non-overlapping 10% future windows. Each fold fits numeric/categorical type inference, imputation, scaling, and one-hot encoding on that fold's training prefix only. It records the exact train/test positional ranges, each future-window SHA-256, per-window MAE/RMSE/R², and the mean plus sample standard deviation (ddof=1) across windows. The source frame is copied and checked for mutation.
 
 This is temporal-window variability, not random-seed variability. Training prefixes overlap by design; future test windows do not overlap. Three windows provide descriptive dispersion, not a confidence interval. The Ridge alpha remains fixed at 1.0 and no tuning is performed. The 25 November workflow completed and its artifact was downloaded and inspected. Across 70%, 80%, and 90% expanding training prefixes with non-overlapping 10% future windows, clean Ridge mean ± sample SD was MAE 102.337591 ± 14.717943, RMSE 134.584052 ± 16.832018, and R² 0.610930 ± 0.007623. This is temporal-window dispersion, not random-seed uncertainty or a confidence interval; full per-window values, test hashes, and artifact provenance are recorded in docs/RESEARCH_RESULTS.md.
+
+
+## 27 November 2026 — Consolidated research outcome and open questions
+
+The measured experiments and cross-study interpretation are consolidated in [RESEARCH_SYNTHESIS.md](RESEARCH_SYNTHESIS.md); exact per-run metrics, confusion counts, artifact hashes, software versions, and workflow provenance remain in [RESEARCH_RESULTS.md](RESEARCH_RESULTS.md).
+
+| Research question | Current evidence | Status |
+|---|---|---|
+| 1. How accurately do statistical, rule-based, and ML techniques detect controlled data defects? | Five seeded defect families were evaluated on UCI Wine and UCI Bike Sharing with applicable precision/recall/F1, confusion counts, runtime, and a Python allocation proxy. | Answered for the declared synthetic protocols and two references only; not a real-world accuracy estimate. |
+| 2. How does a hybrid detector compare with individual techniques? | Individual detectors and weighted DQS are implemented, but no controlled ablation compares a fully specified hybrid detector against each individual method. | Open; deferred scope cut. |
+| 3. Does recommended cleaning improve downstream model performance under controlled corruption? | Wine classification and five-family Bike Sharing regression compare clean, corrupted, and cleaned-corrupted training with untouched test data. Results range from exact restoration/parity to mixed or conditional effects. | Partially answered; no universal cleaning benefit is supported. |
+| 4. How does dataset size affect detection runtime? | The two references differ in size and schema, but feature counts, type mixes, and detector workloads also differ. | Open; no controlled size-scaling conclusion. |
+
+Bike Sharing regression seeds vary corruption positions on a fixed chronological holdout. The separate three-window rolling-origin standard deviation measures temporal-window dispersion only; it is not seed uncertainty or a confidence interval. The `tracemalloc` metric is a Python allocation proxy, not total process memory.
+
+**M9 disposition:** all planned prototype detector, multi-seed, downstream-corruption, and clean-baseline temporal-window experiments have been executed and documented. Questions 2 and 4 remain explicitly unresolved. **M10 remains open** for deployment/known-limitations review, clean-environment setup and demo verification, final integration checks, and the delivery report.
