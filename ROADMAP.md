@@ -11,7 +11,7 @@
 - [x] M7 — Safe cleaning: advisory recommendations, read-only preview, explicit apply, immutable versions, review acknowledgement, version history, DQS comparison, numeric summary deltas, aligned histograms, and Pearson correlation deltas passed the full-stack Chromium workflow on 16 November 2026.
 - [x] M8 — ML readiness and baselines: deterministic diagnostics, profile-driven target/feature selection, and logistic-regression classification plus Ridge regression are implemented with training-only preprocessing. Both task workflows, readiness, holdout metrics, and confusion-matrix rendering passed the full-stack Chromium workflow on 16 November 2026. Repeated-seed and corruption-condition model experiments remain M9 work.
 - [x] M9 — Research lab: seeded five-family corruption, defect-specific detector metrics, three-seed aggregation, UCI Wine classification, five-family Bike Sharing downstream regression, Isolation Forest sensitivity, pure case-only evaluation, and clean-baseline rolling-origin stability are implemented and measured. The 27 November synthesis records cross-study findings and explicit limits. Research questions 2 (hybrid-versus-individual ablation) and 4 (controlled dataset-size/runtime scaling) remain unaddressed scope cuts; see docs/RESEARCH_SYNTHESIS.md.
-- [ ] M10 — Hardening: the isolated API-level demo and browser E2E are implemented and verified. Remaining work is the known-limitations/deployment audit, clean-environment setup/demo verification, final main-branch integration checks, and final delivery report.
+- [ ] M10 — Hardening: the isolated API-level demo and browser E2E are implemented and verified. The 28 November audit adds strict environment-configurable CORS origins and documents the single-instance SQLite/persistent-storage deployment posture, build-time frontend API URL, TLS, backups, health checks, and missing authentication/rate limiting in docs/DEPLOYMENT.md. Remaining work is clean-environment setup/demo verification, final main-branch integration checks, and the final delivery report.
 
 ## Definition of done
 
@@ -147,3 +147,13 @@ A milestone is complete only when its implementation is present, relevant checks
 - The demo uses an in-memory SQLite database plus isolated temporary upload/version storage; it restores application globals and preserves the original uploaded bytes.
 - Added a pytest integration test for the complete demo and its training-only preprocessing/source-integrity assertions.
 - The demo is API-level and complements rather than replaces the real-browser Playwright workflow. M10 remains open for final research synthesis, known-limitations/deployment audit, and the final delivery report.
+
+
+## 28 November 2026 — Deployment configuration and operational audit
+
+- Replaced the hard-coded localhost-only CORS allowlist with `DATASENTRY_CORS_ORIGINS`, a comma-separated exact-origin allowlist. Unset configuration retains the two localhost development origins.
+- Added fail-fast validation: only HTTP(S) origins are accepted; credentials, wildcard origins, paths, queries, fragments, malformed hosts/ports, empty entries, and the opaque `null` origin are rejected. Default ports and a single trailing slash are normalized, and duplicates are removed.
+- Added focused unit tests for defaults, environment loading, normalization, deduplication, invalid origin rejection, and FastAPI middleware wiring.
+- Added docs/DEPLOYMENT.md covering the persistent SQLite/upload/version data root, single-instance constraint, frontend build-time API URL, TLS/reverse proxy, health/readiness distinction, backup consistency, and the current absence of authentication/rate limiting.
+- Updated local frontend setup notes to explain the backend CORS allowlist and Next.js public environment variable build-time behavior.
+- M10 remains open until a clean environment reproduces setup and the isolated API demo, final main-branch CI is green, and the final delivery report is published. No production deployment or public-network security certification is claimed.
