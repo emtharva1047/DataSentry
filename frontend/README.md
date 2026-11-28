@@ -31,7 +31,7 @@ npm run dev
 ```
 
 Open http://localhost:3000. The default API URL is http://127.0.0.1:8000.
-For a different backend URL, edit `NEXT_PUBLIC_API_BASE_URL` in `.env.local` and restart the frontend.
+For a different backend URL, edit `NEXT_PUBLIC_API_BASE_URL` in `.env.local` and restart the frontend. For a deployed build, set `NEXT_PUBLIC_API_BASE_URL` before `npm run build`; Next.js embeds this public variable into the browser bundle, so changing it requires a rebuild. Configure the backend's `DATASENTRY_CORS_ORIGINS` with the exact frontend origin (scheme, host, and optional port; no path) before starting FastAPI.
 
 ## Available commands
 
